@@ -7,10 +7,9 @@ import time
 import struct  # Import the struct module
 import re
 
-serial_port = '/dev/ttyS0'
 ser = serial.Serial('/dev/ttyACM0', 9600, timeout=1)  # set up serial output for Arduino
 
-lora = serial.Serial(serial_port, baudrate=115200, timeout=0)
+lora = serial.Serial('/dev/ttyS0', baudrate=115200, timeout=0) # set up lora
 
 # TEST COMMAND
 lora.write(('AT\r\n').encode('utf-8'))
@@ -41,13 +40,19 @@ def parse(sentence):
     else:
         return None
 
-def transmit(data):
+def transmit_Lora(data):
     lora.write(('AT+SEND=99,' + str(len(data)) + ',' + data + ',\r\n').encode('utf-8'))
     
-def receive():
+def receive_Lora():
     lora.write(('+RCV\r\n').encode('utf-8'))
     response = lora.readline().decode('utf-8').strip()
     return response
+
+def send_arduino(throttle, steering):
+    ser.write(struct.pack('<h', int(throttle)))
+    ser.flush()
+    ser.write(struct.pack('<h', int(steering)))
+    ser.flush()
 
 mode = 0
 req = 0
@@ -74,10 +79,7 @@ while True:
                     # Send motor controls to arduino
                     print("throttle is", throttle)
                     print("steering is", steering)
-                    ser.write(struct.pack('<h', int(throttle)))
-                    ser.flush()
-                    ser.write(struct.pack('<h', int(steering)))
-                    ser.flush()
+                    send_arduino(throttle,steering)
                 elif mode == 0: 
                     # IN AUTO MODE
                     # Send data if requested
