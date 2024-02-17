@@ -36,13 +36,13 @@ def parse(sentence):
     else:
         return None
 
-def transmit_Lora(data, max_retries=3):
+def transmit_Lora(data, max_retries=7):
     retry_count = 0
 
     while retry_count < max_retries:
         lora.write(('AT+SEND=99,' + str(len(data)) + ',' + data + ',\r\n').encode('utf-8'))
         time.sleep(0.1)
-        ack_response = lora.readline(timeout=2).decode('utf-8').strip()
+        ack_response = lora.readline().decode('utf-8').strip()
 
         if 'OK' in ack_response:
             print(f"Received acknowledgment: {ack_response}")
@@ -107,10 +107,6 @@ while True:
                         time.sleep(0.1)
                         
                         # Wait for ACK before moving on
-                        ack_response = transmit_Lora(data)
-                        if 'OK' in ack_response:
-                            print("Sent: ", data)
-                        else:
-                            print("Failed to receive ACK.")
+                        transmit_Lora(data)
                     else:
                         print("No Data request")
