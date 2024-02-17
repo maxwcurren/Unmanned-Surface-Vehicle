@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw, ImageFont
 import adafruit_ssd1306
 
 
-controller = InputDevice( '/dev/input/event4') # set up input from game controller using evdev library to decode gamepad input
+controller = InputDevice( '/dev/input/event8') # set up input from game controller using evdev library to decode gamepad input
 serial_port = '/dev/ttyS0'
 test_data="this"
 ser = serial.Serial(serial_port, baudrate=115200,timeout=1)
@@ -61,7 +61,7 @@ def transmit_Lora(data):
     
 
 def receive_Lora(max_retries=15):
-    time.sleep(3)
+    time.sleep(4)
     retry_count = 0
 
     while retry_count < max_retries:
@@ -70,7 +70,7 @@ def receive_Lora(max_retries=15):
 
         if response:
             if 'ERR' in response or 'OK' in response:
-                #print(f"Received error: {response}")
+                print(f"Received error: {response}")
                 pass
             else:
                 print(f"Received: {response}")
@@ -86,19 +86,21 @@ def receive_Lora(max_retries=15):
     return response, error
 
 def parse(info):
-                            print("FIX PARSE FUNCTION")
-    match = re.match(r'\+RCV=(\d+),(\d+),*(\d+)\&(\d+)\^(\d+)\+', info)
-    
-    if match:
-        long = int(match.group(3))
-        lat = int(match.group(4))
-        Mag = int(match.group(5))
-        return long, lat, Mag
-    else:
-        return None
+    print("info is: ",info)
+    match = re.match(r'\+RCV=(\d+),(\d+),\!(-?\d+)\&(-?\d+)\^(\d+)\+,(-?\d+),(-?\d+)', info)
 
-def Auto(mode):
-    def dPrntA():
+    if match:
+        lon = match.group(3)
+        lat = match.group(4)
+        Mag = match.group(5)
+        print("lon: ", lon)
+        print("lat: " ,lat)
+        print("mag: ", Mag)
+        return lon, lat, Mag
+    else:
+        print("error in parse")
+        return None
+def dPrntA():
         draw.rectangle((0, 0, oled.width, oled.height), outline=0, fill=0)
         draw.text((0, 0), "In AUTO mode", font=font, fill=255)
         draw.text((0, 16), "Press B to Exit", font=font, fill=255)
@@ -106,9 +108,11 @@ def Auto(mode):
         oled.image(image)
         oled.show()
         
+def Auto(mode):
+    
     dPrntA()   
     while mode==0:   # make void funtion for auto mode
-        
+       
         for event in controller.read_loop():
             
             if event.type == ecodes.EV_KEY:
@@ -116,30 +120,42 @@ def Auto(mode):
                     mode=1
                     Manual(mode)
                 if categorize(event).keycode[0] =="BTN_A": # press A to get data
-                    #write to request
+                    #write to request data from USV
                     request=1
-                    test_data = '*' + str(request) + '&' + str(mode) + '^' + str(throttle) + '%' + str(steering) + '+\n'        
+                    test_data = '*' + str(request) + '&' + str(mode) + '^' + str(throttle) + '%' + str(steering) + '+\n' 
+                    request=0
                     transmit_Lora(test_data)
                     #read mode
-                    #time.sleep(.5)
+                    time.sleep(1)
                     info, error = receive_Lora()
                     if error != 1:
                         
                         #print(f"Sensor Data: {info}")
-                        long, lat, Mag = parse(info)
-                        request=int(lat)
-                        print("request fliped: " , request)
-                        print("Coordinates are: ", long, lat) 
-                        print("Orientation is: ", Mag)
-                        draw.rectangle((0, 0, oled.width, oled.height), outline=0, fill=0)
-                        draw.text((0, 0), "In AUTO mode", font=font, fill=255)
-                        draw.text((0, 16), "Lat: " + str(lat), font=font, fill=255)
-                        draw.text((0, 32), "Long: " + str(long), font=font, fill=255)
-                        draw.text((0, 48), "Mag: " + str(Mag), font=font, fill=255)
-                        oled.image(image)
-                        oled.show()
-                    else:
-                        print("Error receiving sensor data")
+                        response = parse(info)
+                        if response is not None:
+                            request=0
+                            lon, lat, Mag = response
+                            request=int(lat)
+                            print("request fliped: " , request)
+                            print("Coordinates are: ", lon, lat) 
+                            print("Orientation is: ", Mag)
+                            draw.rectangle((0, 0, oled.width, oled.height), outline=0, fill=0)
+                            draw.text((0, 0), "In AUTO mode", font=font, fill=255)
+                            draw.text((0, 16), "Lat: " + str(float(lat)/10000), font=font, fill=255)
+                            draw.text((0, 32), "Long: " + str(float(lon)/10000), font=font, fill=255)
+                            draw.text((0, 48), "Mag: " + str(Mag), font=font, fill=255)
+                            oled.image(image)
+                            oled.show()
+                        else:
+                            draw.rectangle((0, 0, oled.width, oled.height), outline=0, fill=0)
+                            draw.text((0, 0), "ERROR", font=font, fill=255)
+                            draw.text((0, 16), "No Data Received" , font=font, fill=255)
+                            draw.text((0, 48), "Press A to try again", font=font, fill=255)
+                            oled.image(image)
+                            oled.show()
+                            time.sleep(1)
+                            dPrntA()
+                            print("Error receiving sensor data")
                     
                         
             else:
@@ -218,14 +234,6 @@ def Manual(mode):
                     transmit_Lora(test_data)
                     print(test_data)
                         
-#                     val1=str(throttle)
-#                     draw.rectangle((0, 0, oled.width, oled.height), outline=0, fill=0)
-#                     draw.text((0, 0), "In Manual mode", font=font, fill=255)
-#                     draw.text((0, 16), "Press Y to Exit", font=font, fill=255)
-#                     draw.text((0, 32), "Throttle: " + val1, font=font, fill=255)
-#                     draw.text((0, 48), "Steering: " + val2, font=font, fill=255)
-#                     oled.image(image)
-#                     oled.show()
                     
                 if event.code in axis and axis[ event.code ] == 'lt':      #read if throttle reverse input
                     value = event.value 
@@ -243,21 +251,13 @@ def Manual(mode):
                     transmit_Lora(test_data)
                     print(test_data)
                     
-#                     val1=str(brake)
-#                     draw.rectangle((0, 0, oled.width, oled.height), outline=0, fill=0)
-#                     draw.text((0, 0), "In Manual mode", font=font, fill=255)
-#                     draw.text((0, 16), "Press Y to Exit", font=font, fill=255)
-#                     draw.text((0, 32), "Throttle: " + val1, font=font, fill=255)
-#                     draw.text((0, 48), "Steering: " + val2, font=font, fill=255)
-#                     oled.image(image)
-#                     oled.show()
-                    
                          
                 if event.code in axis and axis[ event.code ] == 'ls_x':      #Read if steering input
                     last[ axis [event.code ] ] = event.value
                     value = event.value - center[ axis [event.code ] ]
                     steering=abs(int (value/64) )
                     
+                    #absolute control i.e full left, full right, center
                     if steering>700:
                         steering=1022
                     elif steering<401:
@@ -268,20 +268,13 @@ def Manual(mode):
                     if steering % 2 == 1:                                     # make steering always even to distinguish in arduino
                         steering = steering + 1
                         
-                    
                     test_data = '*' + str(request) + '&' + str(mode) + '^' + str(throttle) + '%' + str(steering) + '+\n'        
                     transmit_Lora(test_data)
                     print(test_data)
-#                     val2=str(steering)
-#                     draw.rectangle((0, 0, oled.width, oled.height), outline=0, fill=0)
-#                     draw.text((0, 0), "In Manual mode", font=font, fill=255)
-#                     draw.text((0, 16), "Press Y to Exit", font=font, fill=255)
-#                     draw.text((0, 32), "Throttle: " + val1, font=font, fill=255)
-#                     draw.text((0, 48), "Steering: " + val2, font=font, fill=255)
-#                     oled.image(image)
-#                     oled.show()
+
 
                 else:
+                    #if no input from controller resend neutral positions
                     print("no control input")
                     test_data = '*' + str(request) + '&' + str(mode) + '^' + str(throttle) + '%' + str(steering) + '+\n'        
                     transmit_Lora(test_data)
