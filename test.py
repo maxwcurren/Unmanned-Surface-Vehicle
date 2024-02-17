@@ -86,6 +86,7 @@ def receive_Lora(max_retries=15):
     return response, error
 
 def parse(info):
+                            print("FIX PARSE FUNCTION")
     match = re.match(r'\+RCV=(\d+),(\d+),*(\d+)\&(\d+)\^(\d+)\+', info)
     
     if match:
@@ -123,7 +124,20 @@ def Auto(mode):
                     #time.sleep(.5)
                     info, error = receive_Lora()
                     if error != 1:
-                        print(f"Sensor Data: {info}")
+                        
+                        #print(f"Sensor Data: {info}")
+                        long, lat, Mag = parse(info)
+                        request=int(lat)
+                        print("request fliped: " , request)
+                        print("Coordinates are: ", long, lat) 
+                        print("Orientation is: ", Mag)
+                        draw.rectangle((0, 0, oled.width, oled.height), outline=0, fill=0)
+                        draw.text((0, 0), "In AUTO mode", font=font, fill=255)
+                        draw.text((0, 16), "Lat: " + str(lat), font=font, fill=255)
+                        draw.text((0, 32), "Long: " + str(long), font=font, fill=255)
+                        draw.text((0, 48), "Mag: " + str(Mag), font=font, fill=255)
+                        oled.image(image)
+                        oled.show()
                     else:
                         print("Error receiving sensor data")
                     
