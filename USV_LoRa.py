@@ -36,7 +36,7 @@ def parse(sentence):
     else:
         return None
 
-def transmit_Lora(data, max_retries=7):
+def transmit_Lora(data, max_retries=15):
     retry_count = 0
 
     while retry_count < max_retries:
