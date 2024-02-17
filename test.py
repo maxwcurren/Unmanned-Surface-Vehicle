@@ -16,3 +16,6 @@ def receive_Lora(max_retries=5):
         time.sleep(0.1)
 
     print(f"Exceeded maximum retries ({max_retries})")
+
+# Call the receive function with a maximum retry count of 5 (adjust as needed)
+received_data = receive_Lora(max_retries=5)
