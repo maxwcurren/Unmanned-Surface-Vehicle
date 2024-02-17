@@ -74,12 +74,16 @@ def receive_Lora(max_retries=15):
                 pass
             else:
                 print(f"Received: {response}")
-                return response
+                error = 0
+                return response, error
         retry_count += 1
         #print(f"Retrying... {retry_count}/{max_retries}")
         time.sleep(0.1)
 
     print(f"Exceeded maximum retries ({max_retries})")
+    response = ""
+    error = 1
+    return response, error
 
 def parse(info):
     match = re.match(r'\+RCV=(\d+),(\d+),*(\d+)\&(\d+)\^(\d+)\+', info)
@@ -117,8 +121,11 @@ def Auto(mode):
                     transmit_Lora(test_data)
                     #read mode
                     #time.sleep(.5)
-                    info = receive_Lora()
-                    #print(info)
+                    info, error = receive_Lora()
+                    if error != 1:
+                        print(f"Sensor Data: {info}")
+                    else:
+                        print("Error receiving sensor data")
                     
                         
             else:
