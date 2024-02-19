@@ -1,6 +1,8 @@
 import serial
 import re
 
+gps = serial.Serial(port='/dev/ttyUSB0', baudrate=9600, timeout=1)
+
 def parse_gpgll(sentence):
     match = re.match(r'\$GPGLL,(\d+\.\d+),([NS]),(\d+\.\d+),([EW]),.*', sentence)
     
@@ -15,22 +17,25 @@ def parse_gpgll(sentence):
             # If West, make longitude negative
             longitude = -longitude  
 
-        return latitude/100, longitude/100
+        return int(latitude* 100), int(longitude* 100)
     else:
         return None
+        
+def getGPS():
+    latitude = 0
+    longitude = 0
 
-try:
-    ser = serial.Serial(port='/dev/ttyUSB0', baudrate=9600, timeout=1)
-    
-    while True:
-        data = ser.readline().decode('utf-8').strip()
+    while latitude == 0 and longitude == 0:
+        print("Retrieving coordinates")
+        # Read data from the GPS module
+        data = gps.readline().decode('utf-8').strip()
+
         if data.startswith("$GPGLL"):
+            # Parse the GPS data
             result = parse_gpgll(data)
+
             if result is not None:
                 latitude, longitude = result
-                print(f"Latitude: {latitude}, Longitude: {longitude}")
 
-except Exception as e:
-    print(f"Error: {e}")
-finally:
-    ser.close()
+    return longitude, latitude
+
