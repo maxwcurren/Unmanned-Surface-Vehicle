@@ -47,22 +47,6 @@ def parse_gpgll(sentence):
     else:
         return None
 
-def getGPS():
-    ser = serial.Serial(port='/dev/ttyS0', baudrate=9600, timeout=1)
-
-    data = ser.readline().decode('utf-8').strip()
-    if data.startswith("$GPGLL"):
-        latitude, longitude = parse_gpgll(data)
-        if latitude is not None and longitude is not None:
-            print(f"Latitude: {latitude}, Longitude: {longitude}")
-    return longitude, latitude
-def getMagno():
-    # NEED TO GET CODE FROM ALYAN
-    pass
-def getAccel():
-    # NEED TO GET CODE FROM ALYAN
-    pass
-
 def mapSurge(surge):
     # MAPS SURGE FROM 0 TO 1023 ALL ODD NUMBERS
     pass
@@ -109,6 +93,9 @@ dt = 0.1    # Rate of sensor updates
 # Initialize errors
 prev_e_surge = 0
 prev_e_yaw = 0
+
+QMC = QMC5883L()
+mpu6050 = MPU6050()
 
 while True:
     for i in range(num_waypoints - 1):
