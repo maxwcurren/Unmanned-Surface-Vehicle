@@ -6,10 +6,6 @@ import math
 import numpy as np
 from scipy.integrate import odeint
 
-# GUI libraries
-import tkinter as tk
-from PIL import Image, ImageTk
-
 # Sensor libraries
 import serial
 import time
@@ -87,10 +83,10 @@ req = 0
 throttle = 511
 steering = 511
 
-# Get waypoints:
+#Get Waypoints:
+print("Implement get starting position and waypoints from Base Station")
+# will be a transmit from the base station and confirmation from the USV
 
-image_path = 'map.png'
-final_longitude, final_latitude = getWaypoints(image_path)
 # Set PID Parameters:
 Kp_surge, Ki_surge, Kd_surge = 11.59, 2.86, 1.88
 Kp_yaw, Ki_yaw, Kd_yaw = 11.59, 2.86, 1.88
