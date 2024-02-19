@@ -16,7 +16,6 @@ import re
 import Accel_Mag
 import GPS
 import PID
-from Waypoints import getWaypoints
 
 ser = serial.Serial('/dev/ttyACM0', 9600, timeout=1)  # set up serial output for Arduino
 lora = serial.Serial('/dev/ttyS0', baudrate=115200, timeout=0)  # set up LoRa
