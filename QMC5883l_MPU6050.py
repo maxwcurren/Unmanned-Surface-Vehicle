@@ -235,11 +235,6 @@ class QMC5883L(object):
                 b -= 360.0
         return b
 
-    def get_temp(self):
-        "Raw (uncalibrated) data from temperature sensor."
-        [x, y, z, t] = self.get_data()
-        return t
-
     def set_declination(self, value):
         "Set the magnetic declination, in degrees."
         try:
@@ -278,15 +273,26 @@ class QMC5883L(object):
                            fset=set_calibration,
                            doc=u'Transformation matrix to adjust (x, y) magnetic vector.')
 
+def getAccel():
+    Ax, Ay, Az = mpu6050.read_accelerometer_data()
+return Ax, Ay, Az
+
+def getGyro():
+    Gx, Gy, Gz = mpu6050.read_gyroscope_data()
+    return Gx, Gy, Gz
+def getMagno():
+    bearing = QMC.get_bearing()
+return bearing
+
 if __name__ == "__main__":
     QMC = QMC5883L()
     mpu6050 = MPU6050()
      
-    while True:
-        bearing = QMC.get_bearing()
-        Ax, Ay, Az = mpu6050.read_accelerometer_data()
-        Gx, Gy, Gz = mpu6050.read_gyroscope_data()
-        print("Gx={:.2f} °/s \tGy={:.2f} °/s \tGz={:.2f} °/s \tAx={:.2f} g \tAy={:.2f} g \tAz={:.2f} g \tBearing: {:.2f} degrees".format(Gx, Gy, Gz, Ax, Ay, Az, bearing))
-        sleep(1)
+#    while True:
+#        bearing = QMC.get_bearing()
+#        Ax, Ay, Az = mpu6050.read_accelerometer_data()
+#        Gx, Gy, Gz = mpu6050.read_gyroscope_data()
+#        print("Gx={:.2f} °/s \tGy={:.2f} °/s \tGz={:.2f} °/s \tAx={:.2f} g \tAy={:.2f} g \tAz={:.2f} g \tBearing: {:.2f} degrees".format(Gx, Gy, Gz, Ax, Ay, Az, bearing))
+#        sleep(1)
 
 
