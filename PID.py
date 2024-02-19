@@ -5,6 +5,10 @@ import math
 import serial
 import re
 
+# Import sensor retrieve scripts
+import Accel_Mag
+import GPS
+
 def pid_controller(Kp_surge, Ki_surge, Kd_surge, Kp_yaw, Ki_yaw, Kd_yaw, setpoint_surge, setpoint_yaw, integral_surge, integral_yaw, prev_e_surge, prev_e_yaw, current_value_surge, current_value_yaw, dt):
     e_surge = setpoint_surge - current_value_surge
     integral_surge += e_surge * dt
