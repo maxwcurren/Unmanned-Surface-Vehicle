@@ -284,10 +284,10 @@ def getMagno():
     bearing = QMC.get_bearing()
 return bearing
 
-if __name__ == "__main__":
-    QMC = QMC5883L()
-    mpu6050 = MPU6050()
-     
+#if __name__ == "__main__":
+#    QMC = QMC5883L()
+#    mpu6050 = MPU6050()
+#     
 #    while True:
 #        bearing = QMC.get_bearing()
 #        Ax, Ay, Az = mpu6050.read_accelerometer_data()
