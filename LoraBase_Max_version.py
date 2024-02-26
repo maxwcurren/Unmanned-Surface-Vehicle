@@ -10,8 +10,14 @@ import digitalio
 from PIL import Image, ImageDraw, ImageFont
 import adafruit_ssd1306
 
+maxJs= 65536
+value=0
+mode=1
+request=0
+throttle=511
+steering=511
 
-controller = InputDevice( '/dev/input/event8') # set up input from game controller using evdev library to decode gamepad input
+controller = InputDevice( '/dev/input/event4') # set up input from game controller using evdev library to decode gamepad input
 serial_port = '/dev/ttyS0'
 test_data="this"
 ser = serial.Serial(serial_port, baudrate=115200,timeout=1)
@@ -70,36 +76,46 @@ def receive_Lora(max_retries=15):
 
         if response:
             if 'ERR' in response or 'OK' in response:
-                print(f"Received error: {response}")
+                #print(f"Received error: {response}")
                 pass
             else:
-                print(f"Received: {response}")
+                #print(f"Received: {response}")
                 error = 0
                 return response, error
         retry_count += 1
         #print(f"Retrying... {retry_count}/{max_retries}")
         time.sleep(0.1)
 
-    print(f"Exceeded maximum retries ({max_retries})")
+    #print(f"Exceeded maximum retries ({max_retries})")
+    draw.rectangle((0, 0, oled.width, oled.height), outline=0, fill=0)
+    draw.text((0, 0), "ERROR", font=font, fill=255)
+    draw.text((0, 16), "No Data Received" , font=font, fill=255)
+    draw.text((0, 48), "Press A to try again", font=font, fill=255)
+    oled.image(image)
+    oled.show()
+    time.sleep(2)
+    dPrntA()
+    print("Error receiving sensor data")
     response = ""
     error = 1
     return response, error
 
 def parse(info):
-    print("info is: ",info)
-    match = re.match(r'\+RCV=(\d+),(\d+),\!(-?\d+)\&(-?\d+)\^(\d+)\+,(-?\d+),(-?\d+)', info)
+    #print("info is: ", info)
+    match = re.match(r'\+RCV=(\d+),(\d+),\*(-?\d+)\&(-?\d+)\^(\d+)\+,-?(\d+),(-?\d+)', info)
 
     if match:
         lon = match.group(3)
         lat = match.group(4)
         Mag = match.group(5)
-        print("lon: ", lon)
-        print("lat: " ,lat)
-        print("mag: ", Mag)
+        #print("lon: ", lon)
+        #print("lat: ", lat)
+        #print("mag: ", Mag)
         return lon, lat, Mag
     else:
         print("error in parse")
         return None
+        
 def dPrntA():
         draw.rectangle((0, 0, oled.width, oled.height), outline=0, fill=0)
         draw.text((0, 0), "In AUTO mode", font=font, fill=255)
@@ -108,8 +124,12 @@ def dPrntA():
         oled.image(image)
         oled.show()
         
-def Auto(mode):
-    
+def Auto():
+    global mode
+    global request
+    global steering
+    global throttle
+
     dPrntA()   
     while mode==0:   # make void funtion for auto mode
        
@@ -118,7 +138,7 @@ def Auto(mode):
             if event.type == ecodes.EV_KEY:
                 if categorize(event).keycode[0] =="BTN_B": # press B to exit
                     mode=1
-                    Manual(mode)
+                    Manual()
                 if categorize(event).keycode[0] =="BTN_A": # press A to get data
                     #write to request data from USV
                     request=1
@@ -136,9 +156,9 @@ def Auto(mode):
                             request=0
                             lon, lat, Mag = response
                             request=int(lat)
-                            print("request fliped: " , request)
+                            #print("request fliped: " , request)
                             print("Coordinates are: ", lon, lat) 
-                            print("Orientation is: ", Mag)
+                            print(f"Orientation is {Mag} degrees")
                             draw.rectangle((0, 0, oled.width, oled.height), outline=0, fill=0)
                             draw.text((0, 0), "In AUTO mode", font=font, fill=255)
                             draw.text((0, 16), "Lat: " + str(float(lat)/10000), font=font, fill=255)
@@ -146,23 +166,16 @@ def Auto(mode):
                             draw.text((0, 48), "Mag: " + str(Mag), font=font, fill=255)
                             oled.image(image)
                             oled.show()
-                        else:
-                            draw.rectangle((0, 0, oled.width, oled.height), outline=0, fill=0)
-                            draw.text((0, 0), "ERROR", font=font, fill=255)
-                            draw.text((0, 16), "No Data Received" , font=font, fill=255)
-                            draw.text((0, 48), "Press A to try again", font=font, fill=255)
-                            oled.image(image)
-                            oled.show()
-                            time.sleep(1)
-                            dPrntA()
-                            print("Error receiving sensor data")
-                    
-                        
             else:
                 break
            
     
-def Manual(Mode):
+def Manual():
+    global mode
+    global request
+    global steering
+    global throttle
+
     axis = {
         ecodes.ABS_X: 'ls_x' ,   # 0-65,535 input
         ecodes.ABS_Y: 'ls_y' ,
@@ -198,40 +211,43 @@ def Manual(Mode):
     oled.image(image)
     oled.show()
     
-    while Mode==1:
+    while mode==1:
         
         for event in controller.read_loop() :
             
             if event.type == ecodes.EV_KEY:  
                 
-                if categorize(event).keycode[0] =="BTN_WEST": # press y button to exit manual
-                    print("button")
-                    Mode=0
-                    print(Mode)
-                    time.sleep(1)
-                    Auto(Mode)
+                if categorize(event).keycode[0] =="BTN_WEST":                  # press y button to exit manual
+                    mode=0
+                    throttle=511
+                    steering=511
+                    test_data = '*' + str(request) + '&' + str(mode) + '^' + str(throttle) + '%' + str(steering) + '+\n'        
+                    transmit_Lora(test_data)
+                    Auto()   
+                    
                 
             if event.type == ecodes.EV_ABS:
-                #print("Input detected")
-                if event.code in axis and axis[ event.code ] == 'dpad_y':      #read if throttle forward input
+                if event.code in axis and axis[ event.code ] == 'dpad_y':       #read if throttle forward input
                     value = event.value 
-                    print(value)
-                                                  # make sent value between 0-->1024
-                    #
+                                                                                # make sent value between 0-->1024
                     if value==-1:
                         throttle=651
                     elif value==1:
                         throttle=401
                     else:
                         throttle=511 
-                    #
                     
-                    if throttle % 2 == 0:                                     # make throttle always odd to distinguish in arduino
+                    
+                    if throttle % 2 == 0:                                       # make throttle always odd to distinguish in arduino
                             throttle = throttle + 1
                     
                     print("throttle is: " , throttle)
-                    ser.write(struct.pack('<h',throttle))                    #send to arduino
-                    ser.flush()
+                    test_data = '*' + str(request) + '&' + str(mode) + '^' + str(throttle) + '%' + str(steering) + '+\n'        
+                    transmit_Lora(test_data)
+                    print(test_data)
+                    response = ser.readline().decode('utf-8').strip()
+                    print(response)
+
                     
                          
                 if event.code in axis and axis[ event.code ] == 'dpad_x':       #Read if steering input
@@ -244,14 +260,12 @@ def Manual(Mode):
                         steering=2
                     else:
                         steering=510
-                    #
-                    if steering % 2 == 1:                                     # make steering always even to distinguish in arduino
+                    
+                    if steering % 2 == 1:                                      # make steering always even to distinguish in arduino
                         steering = steering + 1
                    
                     print("steering is:" , steering)
-                    ser.write(struct.pack('<h',steering))
-                    ser.flush()
-
-                    
-
-Manual(mode) 
+                    test_data = '*' + str(request) + '&' + str(mode) + '^' + str(throttle) + '%' + str(steering) + '+\n'        
+                    transmit_Lora(test_data)
+                    print(test_data)
+Manual() 
