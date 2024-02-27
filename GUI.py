@@ -51,11 +51,13 @@ class GUI:
 
         # Create "Fast Return" button
         self.fast_return_button = tk.Button(root, text="Fast Return", command=self.on_return_fast_click)
-        self.fast_return_button.pack()
 
         # Create "Safe Return" button
         self.safe_return_button = tk.Button(root, text="Safe Return", command=self.on_return_safe_click)
-        self.safe_return_button.pack()
+
+        # Initially hide the return buttons
+        self.fast_return_button.pack_forget()
+        self.safe_return_button.pack_forget()
 
         # Variables to keep track of waypoint number and counter
         self.waypoint_number = 1
@@ -114,10 +116,22 @@ class GUI:
         # Clear the Text widget displaying coordinates
         self.coordinate_text.delete(1.0, tk.END)
 
+        # Show the return buttons
+        print("Before Showing Return Buttons:")
+        print("Fast Return Button: ", self.fast_return_button.winfo_ismapped())
+        print("Safe Return Button: ", self.safe_return_button.winfo_ismapped())
+
+        self.fast_return_button.pack(side=tk.TOP, before=self.finish_button)
+        self.safe_return_button.pack(side=tk.TOP, before=self.finish_button)
+
         # Hide the "Finish" button
+        print("Before Hiding Finish Button:")
+        print("Finish Button: ", self.finish_button.winfo_ismapped())
         self.finish_button.pack_forget()
-        
+
         # Hide the "Undo" button
+        print("Before Hiding Undo Button:")
+        print("Undo Button: ", self.undo_button.winfo_ismapped())
         self.undo_button.pack_forget()
 
         # Disable further canvas clicks
@@ -156,12 +170,18 @@ class GUI:
         self.return_method = 1
         print("Returning straight back to Base Station")
         self.update_return_text()  # Update text when return method is set
+        # Hide the return buttons
+        self.fast_return_button.pack_forget()
+        self.safe_return_button.pack_forget()
 
     def on_return_safe_click(self):
         self.return_method = 0
         print("Returning to Base Station through reverse waypoints")
         self.update_return_text()  # Update text when return method is set
-
+        # Hide the return buttons
+        self.fast_return_button.pack_forget()
+        self.safe_return_button.pack_forget()
+        
     def update_coordinate_text(self):
         # Clear the Text widget
         self.coordinate_text.delete(1.0, tk.END)
