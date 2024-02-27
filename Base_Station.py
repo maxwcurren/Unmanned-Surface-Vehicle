@@ -13,22 +13,16 @@ import adafruit_ssd1306
 maxJs= 65536
 value=0
 mode=1
-request=0
+req=0
 throttle=511
 steering=511
 
-controller = InputDevice( '/dev/input/event4') # set up input from game controller using evdev library to decode gamepad input
+controller = InputDevice( '/dev/input/event2') # set up input from game controller using evdev library to decode gamepad input
 serial_port = '/dev/ttyS0'
 test_data="this"
 ser = serial.Serial(serial_port, baudrate=115200,timeout=1)
 
-#print(controller)
-maxJs= 65536
-value=0
-mode=1
-request=0
-throttle=511
-steering=511
+
 # Define the Reset Pin
 oled_reset = digitalio.DigitalInOut(board.D4)
 
@@ -83,7 +77,7 @@ def receive_Lora(max_retries=15):
                 error = 0
                 return response, error
         retry_count += 1
-        #print(f"Retrying... {retry_count}/{max_retries}")
+        #print(f"Retrying... {retry_count}/{max_retries}") 
         time.sleep(0.1)
 
     #print(f"Exceeded maximum retries ({max_retries})")
@@ -100,6 +94,45 @@ def receive_Lora(max_retries=15):
     error = 1
     return response, error
 
+def request():
+    #write to request data from USV
+    global req
+    
+    req=1
+    print(f"Request is: {req}")
+    test_data = '*' + str(req) + '&' + str(mode) + '^' + str(throttle) + '%' + str(steering) + '+\n' 
+    print(f"Transmitted string: {test_data}")
+    req=0
+    transmit_Lora(test_data)
+    #read mode
+    draw.rectangle((0, 0, oled.width, oled.height), outline=0, fill=0)
+    draw.text((0, 0), "Request pending", font=font, fill=255)
+    draw.text((0, 16), "//////////" , font=font, fill=255)
+    draw.text((0, 32), "///////" , font=font, fill=255)
+    draw.text((0, 48), "///// "  , font=font, fill=255)
+    draw.text((0, 48), "// "  , font=font, fill=255)
+    oled.image(image)
+    oled.show()
+    time.sleep(1)
+    info, error = receive_Lora()
+    if error != 1:
+        #print(f"Sensor Data: {info}")
+        response = parse(info)
+        if response is not None:
+            req=0
+            lon, lat, Mag = response
+            print("Coordinates are: ", lon, lat) 
+            print(f"Orientation is {Mag} degrees")
+            draw.rectangle((0, 0, oled.width, oled.height), outline=0, fill=0)
+            draw.text((0, 0), "In AUTO mode", font=font, fill=255)
+            draw.text((0, 16), "Lat: " + str(float(lat)/10000), font=font, fill=255)
+            draw.text((0, 32), "Long: " + str(float(lon)/10000), font=font, fill=255)
+            draw.text((0, 48), "Mag: " + str(Mag), font=font, fill=255)
+            oled.image(image)
+            oled.show()
+        
+        
+        
 def parse(info):
     #print("info is: ", info)
     match = re.match(r'\+RCV=(\d+),(\d+),\*(-?\d+)\&(-?\d+)\^(\d+)\+,-?(\d+),(-?\d+)', info)
@@ -124,55 +157,47 @@ def dPrntA():
         oled.image(image)
         oled.show()
         
+debounce_delay = 0.2  # Adjust this value based on your requirements
+
 def Auto():
     global mode
-    global request
-    global steering
-    global throttle
+    global Manual
+    global req
+    global controller
+    global dPrntA
 
     dPrntA()   
-    while mode==0:   # make void funtion for auto mode
-       
+
+    last_a_state = 0  # Initialize the last A button state (0 for up, 1 for down)
+    last_a_press_time = 0  # Initialize the last A press time
+
+    while mode == 0:   # make void function for auto mode
         for event in controller.read_loop():
-            
             if event.type == ecodes.EV_KEY:
-                if categorize(event).keycode[0] =="BTN_B": # press B to exit
-                    mode=1
+                if categorize(event).keycode[0] == "BTN_B":  # press B to exit
+                    mode = 1
                     Manual()
-                if categorize(event).keycode[0] =="BTN_A": # press A to get data
-                    #write to request data from USV
-                    request=1
-                    test_data = '*' + str(request) + '&' + str(mode) + '^' + str(throttle) + '%' + str(steering) + '+\n' 
-                    request=0
-                    transmit_Lora(test_data)
-                    #read mode
-                    time.sleep(1)
-                    info, error = receive_Lora()
-                    if error != 1:
-                        
-                        #print(f"Sensor Data: {info}")
-                        response = parse(info)
-                        if response is not None:
-                            request=0
-                            lon, lat, Mag = response
-                            request=int(lat)
-                            #print("request fliped: " , request)
-                            print("Coordinates are: ", lon, lat) 
-                            print(f"Orientation is {Mag} degrees")
-                            draw.rectangle((0, 0, oled.width, oled.height), outline=0, fill=0)
-                            draw.text((0, 0), "In AUTO mode", font=font, fill=255)
-                            draw.text((0, 16), "Lat: " + str(float(lat)/10000), font=font, fill=255)
-                            draw.text((0, 32), "Long: " + str(float(lon)/10000), font=font, fill=255)
-                            draw.text((0, 48), "Mag: " + str(Mag), font=font, fill=255)
-                            oled.image(image)
-                            oled.show()
+
+                if categorize(event).keycode[0] == "BTN_A":  # press A to get data
+                    current_time = time.time()
+
+                    # Check if the button state has changed to down
+                    if event.value == 1 and last_a_state == 0:
+                        last_a_state = 1
+                        last_a_press_time = current_time
+
+                    # Check if the button state has changed to up and debounce
+                    elif event.value == 0 and last_a_state == 1:
+                        if (current_time - last_a_press_time) > debounce_delay:
+                            request()
+                        last_a_state = 0
             else:
                 break
            
     
 def Manual():
     global mode
-    global request
+    global req
     global steering
     global throttle
 
@@ -210,10 +235,14 @@ def Manual():
     draw.text((0, 16), "Press Y to Exit", font=font, fill=255)
     oled.image(image)
     oled.show()
+   
+    
     
     while mode==1:
-        
+        current_time = time.time()
+        #print("request is", request)
         for event in controller.read_loop() :
+        
             
             if event.type == ecodes.EV_KEY:  
                 
@@ -221,11 +250,10 @@ def Manual():
                     mode=0
                     throttle=511
                     steering=511
-                    test_data = '*' + str(request) + '&' + str(mode) + '^' + str(throttle) + '%' + str(steering) + '+\n'        
+                    test_data = '*' + str(req) + '&' + str(mode) + '^' + str(throttle) + '%' + str(steering) + '+\n'        
                     transmit_Lora(test_data)
                     Auto()   
                     
-                
             if event.type == ecodes.EV_ABS:
                 if event.code in axis and axis[ event.code ] == 'dpad_y':       #read if throttle forward input
                     value = event.value 
@@ -237,16 +265,15 @@ def Manual():
                     else:
                         throttle=511 
                     
-                    
                     if throttle % 2 == 0:                                       # make throttle always odd to distinguish in arduino
                             throttle = throttle + 1
                     
                     print("throttle is: " , throttle)
-                    test_data = '*' + str(request) + '&' + str(mode) + '^' + str(throttle) + '%' + str(steering) + '+\n'        
+                    test_data = '*' + str(req) + '&' + str(mode) + '^' + str(throttle) + '%' + str(steering) + '+\n'        
                     transmit_Lora(test_data)
                     print(test_data)
-                    response = ser.readline().decode('utf-8').strip()
-                    print(response)
+                    #print("request is", request)
+                    
 
                     
                          
@@ -265,7 +292,10 @@ def Manual():
                         steering = steering + 1
                    
                     print("steering is:" , steering)
-                    test_data = '*' + str(request) + '&' + str(mode) + '^' + str(throttle) + '%' + str(steering) + '+\n'        
+                    test_data = '*' + str(req) + '&' + str(mode) + '^' + str(throttle) + '%' + str(steering) + '+\n'        
                     transmit_Lora(test_data)
                     print(test_data)
+                    #print("request is", request)
+
+
 Manual() 
