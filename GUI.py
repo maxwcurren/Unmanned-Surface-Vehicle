@@ -17,10 +17,10 @@ def convert_pixel_to_longitude(pixel_x, min_longitude, max_longitude, image_widt
     scaling_factor = image_width / (max_longitude - min_longitude)
     return min_longitude + (pixel_x / scaling_factor)
 
-class WaypointApp:
+class GUI:
     def __init__(self, root, image_path):
         self.root = root
-        self.root.title("Waypoint Selector")
+        self.root.title("USV GUI")
 
         # Load the image
         self.image = Image.open(image_path)
@@ -42,22 +42,35 @@ class WaypointApp:
         self.latitude_array = []
         self.longitude_array = []
 
-        # Create "Finished" and "Undo" buttons
+        # Create "Finished," "Undo," "Fast Return," and "Safe Return" buttons
         self.finish_button = tk.Button(root, text="Finished", command=self.on_finish_click)
         self.finish_button.pack()
 
         self.undo_button = tk.Button(root, text="Undo", command=self.on_undo_click)
         self.undo_button.pack()
 
+        # Create "Fast Return" button
+        self.fast_return_button = tk.Button(root, text="Fast Return", command=self.on_return_fast_click)
+        self.fast_return_button.pack()
+
+        # Create "Safe Return" button
+        self.safe_return_button = tk.Button(root, text="Safe Return", command=self.on_return_safe_click)
+        self.safe_return_button.pack()
+
         # Variables to keep track of waypoint number and counter
         self.waypoint_number = 1
         self.counter = 0
+        self.return_method = 0
+        self.canvas_click_enabled = True  # Flag to enable/disable canvas click
 
         # Text widget to display coordinates
         self.coordinate_text = tk.Text(root, height=20, width=30)
         self.coordinate_text.pack(side=tk.LEFT, padx=10)
 
     def on_canvas_click(self, event):
+        if not self.canvas_click_enabled:
+            return
+
         # Get coordinates of the click
         x, y = event.x, event.y
 
@@ -88,12 +101,27 @@ class WaypointApp:
         print("Longitude Array:", self.longitude_array)
 
     def on_finish_click(self):
-        # Finalize arrays or perform other actions
+        # Perform any finalization steps here
         print("Final X Array:", self.x_array)
         print("Final Y Array:", self.y_array)
         print("Final Latitude Array:", self.latitude_array)
         print("Final Longitude Array:", self.longitude_array)
-        self.root.destroy()  # Close the GUI
+
+        # Optionally, you can reset the waypoint number and counter for future use
+        self.waypoint_number = 1
+        self.counter = 0
+
+        # Clear the Text widget displaying coordinates
+        self.coordinate_text.delete(1.0, tk.END)
+
+        # Hide the "Finish" button
+        self.finish_button.pack_forget()
+        
+        # Hide the "Undo" button
+        self.undo_button.pack_forget()
+
+        # Disable further canvas clicks
+        self.canvas_click_enabled = False
 
     def on_undo_click(self):
         # Undo the last waypoint
@@ -124,6 +152,16 @@ class WaypointApp:
             print("After Undo - Latitude Array:", self.latitude_array)
             print("After Undo - Longitude Array:", self.longitude_array)
 
+    def on_return_fast_click(self):
+        self.return_method = 1
+        print("Returning straight back to Base Station")
+        self.update_return_text()  # Update text when return method is set
+
+    def on_return_safe_click(self):
+        self.return_method = 0
+        print("Returning to Base Station through reverse waypoints")
+        self.update_return_text()  # Update text when return method is set
+
     def update_coordinate_text(self):
         # Clear the Text widget
         self.coordinate_text.delete(1.0, tk.END)
@@ -131,15 +169,27 @@ class WaypointApp:
         # Iterate through coordinates and update the Text widget
         for lon, lat in zip(self.longitude_array, self.latitude_array):
             self.coordinate_text.insert(tk.END, f"{lon},{lat}\n")
+            
+    def update_return_text(self):
+        self.coordinate_text.delete(1.0, tk.END)
 
+        if self.return_method == 0:
+            self.coordinate_text.insert(tk.END, "Returning to Base Station through reverse waypoints\n")
+
+        if self.return_method == 1:
+            self.coordinate_text.insert(tk.END, "Returning straight back to Base Station\n")
+        
     def get_final_coordinates(self):
+        
         return self.longitude_array, self.latitude_array
+
+    def get_return_method(self):
+        
+        return self.return_method
 
 if __name__ == "__main__":
     image_path = 'map.png'
 
     root = tk.Tk()
-    app = WaypointApp(root, image_path)
+    app = GUI(root, image_path)
     root.mainloop()
-
-    final_longitude, final_latitude = app.get_final_coordinates()
