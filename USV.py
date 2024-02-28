@@ -16,14 +16,10 @@ lora = serial.Serial('/dev/ttyS0', baudrate=115200, timeout=0)  # set up LoRa
 starting_lon, starting_lat = GPS.getGPS()
 print(f"Starting Longitude: {starting_lon/10000.0}, Starting Latitude: {starting_lat/10000.0}")
 
-# create test variables:
-#waypoint_lon = [33.89021, 33.89109, 33.89084, 33.88992, 33.88928]
-#waypoint_lat = [-117.46711, -117.46649, -117.46769, -117.46800, -117.46750]
-#waypoint_num = len(waypoint_lon)
 # return_method will determine how the USV returns to the base station. It will be determined on creation of waypoint arrays.
 # If return_method is zero then the USV will return to the starting position by iterating through the waypoints in reverse.
 # If return_method is one then the USV will directly calculate the heading towards the starting position and stop when it arrives.
-#return_method = 1
+
 # Define globals
 waypoint_count = 0
 mode = 1
@@ -39,10 +35,6 @@ angles = []
 Kp_yaw, Kd_yaw = 2, 1.88
 prev_error = 0.0
 cumulative_error = 0.0
-
-# Read from accel and gyro 
-# Ax, Ay, Az = mpu6050.read_accelerometer_data()
-# Gx, Gy, Gz = mpu6050.read_gyroscope_data()
 
 # PATHING FUNCTIONS
 def detectObject(current_heading, distances, angles):
@@ -71,7 +63,6 @@ def detectObject(current_heading, distances, angles):
         object_detected = 0
         new_heading = current_heading
 
-    #print(f"New Heading: {new_heading}")
     print(f"Object Detected: {object_detected}")
     return object_detected, new_heading
 
@@ -214,7 +205,6 @@ def receive_Way_Ret():
         print(f"lat: {lat}")
         print(f"ret: {ret}")
         if 'ERR' not in response:
-            #print(f"response: {response}")
             if '!' in response:
                 if '_' in response:
                     result = parse_lon(response)
@@ -230,7 +220,6 @@ def receive_Way_Ret():
 def parse_lon(response):
     # Remove the prefix
     response = response.split("_")[1]
-    print(f"response: {response}")
 
     # Split the response string based on "?"
     parts = response.split("?")
@@ -257,7 +246,6 @@ def parse_lon(response):
 def parse_lat(response):
     # Remove the prefix
     response = response.split("&")[1]
-    print(f"response: {response}")
 
     # Split the response string based on "?"
     parts = response.split("?")
@@ -291,9 +279,6 @@ def send_arduino(throttle, steering):
 def manual():
     global throttle, steering
     # IN MANUAL MODE
-    # Send motor controls to Arduino
-    #print("throttle is", throttle)
-    #print("steering is", steering)
     send_arduino(throttle, steering)
 def auto():
     global throttle, steering, req, distances, distances_prev, angles, angles_prev
@@ -311,29 +296,21 @@ def auto():
     distances, angles = Lidar.scan_lidar()
     time_after = time.time()
     sensor_time = time_after - time_before
-    #print(f"Ack Time: {sensor_time}")
+
     if len(distances) == 0:
-        distances = distances_prev.copy()  # Make a deep copy
-        angles = angles_prev.copy()  # Make a deep copy
+        distances = distances_prev.copy()
+        angles = angles_prev.copy() 
     else:
-        distances_prev = distances.copy()  # Make a deep copy
-        angles_prev = angles.copy()  # Make a deep copy
+        distances_prev = distances.copy() 
+        angles_prev = angles.copy() 
 
     # Get target yaw using PID or object detected function
     target_yaw = getNextHeading(current_yaw, distances, angles, waypoint_lon[waypoint_count], waypoint_lat[waypoint_count], gps_lon1, gps_lat1, return_method)
-    #print(f"Target Yaw: {target_yaw}")
-    # print(f"Waypoint Count: {waypoint_count}")
     # MAP setpoints to 0 to 1022 for yaw and send to Arduino for motor control
     steering = mapYaw(target_yaw)
 
     # Send motor controls to Arduino
     send_arduino(throttle, steering)
-
-    #print(distances)
-    #print(angles)
-    # print("Gx={:.2f} °/s \tGy={:.2f} °/s \tGz={:.2f} °/s \tAx={:.2f} g \tAy={:.2f} g \tAz={:.2f} g \tBearing: {:.2f} degrees".format(Gx, Gy, Gz, Ax, Ay, Az, bearing))
-    # print(f"Bearing: {current_yaw} degrees")
-    #print(f"Longitude: {gps_lon1}, Latitude: {gps_lat1}")
 
     # Send data if requested
     if req == 1:
@@ -354,12 +331,10 @@ while True:
     # RECEIVE MANUAL CONTROLS OVER LORA
     time.sleep(0.1)
     response = receive_Lora()
-    #print(f"Response{response}")
     # Filter response
     if 'ERR' not in response:
         if '%' in response and '^' in response and '&' in response and '+' in response and '*' in response:
             # If data successfully sent over LoRa
-            #print(response)
             result = parse(response)
             if result is not None:
                 req, mode, throttle, steering = result
