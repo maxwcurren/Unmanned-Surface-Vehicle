@@ -6,9 +6,12 @@ import struct
 import time
 import board
 import digitalio
+import math
 
 from PIL import Image, ImageDraw, ImageFont
 import adafruit_ssd1306
+
+import GUI
 
 maxJs= 65536
 value=0
@@ -17,7 +20,7 @@ req=0
 throttle=511
 steering=511
 
-controller = InputDevice( '/dev/input/event2') # set up input from game controller using evdev library to decode gamepad input
+controller = InputDevice( '/dev/input/event5') # set up input from game controller using evdev library to decode gamepad input
 serial_port = '/dev/ttyS0'
 test_data="this"
 ser = serial.Serial(serial_port, baudrate=115200,timeout=1)
@@ -130,12 +133,25 @@ def request():
             draw.text((0, 48), "Mag: " + str(Mag), font=font, fill=255)
             oled.image(image)
             oled.show()
-        
-        
+            
+def sendWaypoints(lon, lat, ret, max_retries=1):
+    retry_count = 0
+    while retry_count < max_retries:
+        for i in range(1,4):
+            lon_data = '&' + '?'.join(map(str, map(lambda x: math.floor(x*10000), lon))) + '!' + str(ret)
+            print(f"lon data: {lon_data}")
+            transmit_Lora(lon_data)
+            time.sleep(2)
+        for i in range(1,4):        
+            lat_data = '_' + '?'.join(map(str, map(lambda x: math.floor(x*10000), lat))) + '!' + str(ret)
+            print(f"lat data: {lat_data}")
+            transmit_Lora(lat_data)
+            retry_count += 1
+            time.sleep(2)
         
 def parse(info):
     #print("info is: ", info)
-    match = re.match(r'\+RCV=(\d+),(\d+),\*(-?\d+)\&(-?\d+)\^(\d+)\+,-?(\d+),(-?\d+)', info)
+    match = re.match(r'\+RCV=(\d+),(\d+),\*(-?\d+)\&(-?\d+)\^(\d+)\+,(-?\d+),(-?\d+)', info)
 
     if match:
         lon = match.group(3)
@@ -297,5 +313,11 @@ def Manual():
                     print(test_data)
                     #print("request is", request)
 
-
-Manual() 
+app = GUI.start_GUI()
+waypoint_lon, waypoint_lat = app.get_final_coordinates()
+return_method = app.get_return_method()
+print(f"Waypoint Lon: {waypoint_lon}")
+print(f"Waypoint Lat: {waypoint_lat}")
+print(f"Return Method: {return_method}")
+sendWaypoints(waypoint_lon, waypoint_lat, return_method)
+Manual()
