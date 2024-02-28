@@ -17,13 +17,13 @@ starting_lon, starting_lat = GPS.getGPS()
 print(f"Starting Longitude: {starting_lon/10000.0}, Starting Latitude: {starting_lat/10000.0}")
 
 # create test variables:
-waypoint_lon = [33.89021, 33.89109, 33.89084, 33.88992, 33.88928]
-waypoint_lat = [-117.46711, -117.46649, -117.46769, -117.46800, -117.46750]
-waypoint_num = len(waypoint_lon)
+#waypoint_lon = [33.89021, 33.89109, 33.89084, 33.88992, 33.88928]
+#waypoint_lat = [-117.46711, -117.46649, -117.46769, -117.46800, -117.46750]
+#waypoint_num = len(waypoint_lon)
 # return_method will determine how the USV returns to the base station. It will be determined on creation of waypoint arrays.
 # If return_method is zero then the USV will return to the starting position by iterating through the waypoints in reverse.
 # If return_method is one then the USV will directly calculate the heading towards the starting position and stop when it arrives.
-return_method = 1
+#return_method = 1
 # Define globals
 waypoint_count = 0
 mode = 1
@@ -203,6 +203,84 @@ def receive_Lora():
     response = lora.readline().decode('utf-8').strip()
     return response
 
+def receive_Way_Ret():
+    lon = []
+    lat = []
+    ret = 2
+    print("Waiting for waypoints")
+    while not (lon and lat and ret != 2):
+        response = receive_Lora()
+        print(f"lon: {lon}")
+        print(f"lat: {lat}")
+        print(f"ret: {ret}")
+        if 'ERR' not in response:
+            #print(f"response: {response}")
+            if '!' in response:
+                if '_' in response:
+                    result = parse_lon(response)
+                    if result is not None:
+                        lon, ret = result
+                elif '&' in response:
+                    result = parse_lat(response)
+                    if result is not None:
+                        lat, ret = result
+        time.sleep(0.1)
+    return lon, lat, ret
+
+def parse_lon(response):
+    # Remove the prefix
+    response = response.split("_")[1]
+    print(f"response: {response}")
+
+    # Split the response string based on "?"
+    parts = response.split("?")
+    
+    # Initialize lon as an empty list
+    lon = []
+
+    # Remove everything after "!" in parts and store in lon
+    for part in parts:
+        lon.append(part.split("!")[0])
+
+    # lon_values is an array of integers where each element is an integer in lon that is separated by commas
+    lon_values = [int(value) / 10000 for value in lon]
+    
+    # Remove everything before "!" in parts and store in r
+    r = [part.split("!")[1] for part in parts if "!" in part]
+    r0 = r[0]
+    
+    # Extract the value after "!"
+    ret = int(r0[0]) if r0 else None
+
+    return lon_values, ret
+    
+def parse_lat(response):
+    # Remove the prefix
+    response = response.split("&")[1]
+    print(f"response: {response}")
+
+    # Split the response string based on "?"
+    parts = response.split("?")
+    
+    # Initialize lon as an empty list
+    lat = []
+
+    # Remove everything after "!" in parts and store in lon
+    for part in parts:
+        lat.append(part.split("!")[0])
+
+    # lon_values is an array of integers where each element is an integer in lon that is separated by commas
+    lat_values = [int(value) / 10000 for value in lat]
+    
+    # Remove everything before "!" in parts and store in r
+    r = [part.split("!")[1] for part in parts if "!" in part]
+    r0 = r[0]
+    
+    # Extract the value after "!"
+    ret = int(r0[0]) if r0 else None
+
+    return lat_values, ret
+    
 def send_arduino(throttle, steering):
     ser.write(struct.pack('<h', int(throttle)))
     ser.flush()
@@ -266,6 +344,11 @@ def auto():
         req = 0
     else:
         print("No Data request")
+
+# Get waypoints:
+waypoint_lon, waypoint_lat, return_method = receive_Way_Ret()
+print("Received Waypoints")
+waypoint_num = len(waypoint_lon)
 
 while True:
     # RECEIVE MANUAL CONTROLS OVER LORA
