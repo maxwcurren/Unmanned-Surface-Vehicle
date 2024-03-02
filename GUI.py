@@ -97,17 +97,17 @@ class GUI:
         # Update the Text widget with current coordinates
         self.update_coordinate_text()
 
-        print("X Array:", self.x_array)
-        print("Y Array:", self.y_array)
-        print("Latitude Array:", self.latitude_array)
-        print("Longitude Array:", self.longitude_array)
+        #print("X Array:", self.x_array)
+        #print("Y Array:", self.y_array)
+        #print("Latitude Array:", self.latitude_array)
+        #print("Longitude Array:", self.longitude_array)
 
     def on_finish_click(self):
         # Perform any finalization steps here
-        print("Final X Array:", self.x_array)
-        print("Final Y Array:", self.y_array)
-        print("Final Latitude Array:", self.latitude_array)
-        print("Final Longitude Array:", self.longitude_array)
+        #print("Final X Array:", self.x_array)
+        #print("Final Y Array:", self.y_array)
+        #print("Final Latitude Array:", self.latitude_array)
+        #print("Final Longitude Array:", self.longitude_array)
 
         # Optionally, you can reset the waypoint number and counter for future use
         self.waypoint_number = 1
@@ -117,21 +117,21 @@ class GUI:
         self.coordinate_text.delete(1.0, tk.END)
 
         # Show the return buttons
-        print("Before Showing Return Buttons:")
-        print("Fast Return Button: ", self.fast_return_button.winfo_ismapped())
-        print("Safe Return Button: ", self.safe_return_button.winfo_ismapped())
+        #print("Before Showing Return Buttons:")
+        #print("Fast Return Button: ", self.fast_return_button.winfo_ismapped())
+        #print("Safe Return Button: ", self.safe_return_button.winfo_ismapped())
 
         self.fast_return_button.pack(side=tk.TOP, before=self.finish_button)
         self.safe_return_button.pack(side=tk.TOP, before=self.finish_button)
 
         # Hide the "Finish" button
-        print("Before Hiding Finish Button:")
-        print("Finish Button: ", self.finish_button.winfo_ismapped())
+        #print("Before Hiding Finish Button:")
+        #print("Finish Button: ", self.finish_button.winfo_ismapped())
         self.finish_button.pack_forget()
 
         # Hide the "Undo" button
-        print("Before Hiding Undo Button:")
-        print("Undo Button: ", self.undo_button.winfo_ismapped())
+        #print("Before Hiding Undo Button:")
+        #print("Undo Button: ", self.undo_button.winfo_ismapped())
         self.undo_button.pack_forget()
 
         # Disable further canvas clicks
@@ -161,26 +161,21 @@ class GUI:
             self.update_coordinate_text()
 
             # Print x, y, latitude, and longitude arrays after undo for debugging
-            print("After Undo - X Array:", self.x_array)
-            print("After Undo - Y Array:", self.y_array)
-            print("After Undo - Latitude Array:", self.latitude_array)
-            print("After Undo - Longitude Array:", self.longitude_array)
+            #print("After Undo - X Array:", self.x_array)
+            #print("After Undo - Y Array:", self.y_array)
+            #print("After Undo - Latitude Array:", self.latitude_array)
+            #print("After Undo - Longitude Array:", self.longitude_array)
 
     def on_return_fast_click(self):
         self.return_method = 1
-        print("Returning straight back to Base Station")
-        self.update_return_text()  # Update text when return method is set
-        # Hide the return buttons
-        self.fast_return_button.pack_forget()
-        self.safe_return_button.pack_forget()
+        #print("Returning straight back to Base Station")
+        self.root.destroy()  # Close the GUI
+        
 
     def on_return_safe_click(self):
         self.return_method = 0
-        print("Returning to Base Station through reverse waypoints")
-        self.update_return_text()  # Update text when return method is set
-        # Hide the return buttons
-        self.fast_return_button.pack_forget()
-        self.safe_return_button.pack_forget()
+        #print("Returning to Base Station through reverse waypoints")
+        self.root.destroy()  # Close the GUI
         
     def update_coordinate_text(self):
         # Clear the Text widget
@@ -189,15 +184,6 @@ class GUI:
         # Iterate through coordinates and update the Text widget
         for lon, lat in zip(self.longitude_array, self.latitude_array):
             self.coordinate_text.insert(tk.END, f"{lon},{lat}\n")
-            
-    def update_return_text(self):
-        self.coordinate_text.delete(1.0, tk.END)
-
-        if self.return_method == 0:
-            self.coordinate_text.insert(tk.END, "Returning to Base Station through reverse waypoints\n")
-
-        if self.return_method == 1:
-            self.coordinate_text.insert(tk.END, "Returning straight back to Base Station\n")
         
     def get_final_coordinates(self):
         
@@ -207,9 +193,16 @@ class GUI:
         
         return self.return_method
 
-if __name__ == "__main__":
-    image_path = 'map.png'
+def start_GUI():
+        image_path = 'map.png'
+        root = tk.Tk()
+        app = GUI(root, image_path)
+        root.mainloop()
+        return app
+        
+def get_coordinates():
+        lon, lat = GUI.get_final_coordinates()
+        return lon, lat
 
-    root = tk.Tk()
-    app = GUI(root, image_path)
-    root.mainloop()
+if __name__ == "__main__":
+        start_GUI()
