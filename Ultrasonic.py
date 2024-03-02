@@ -2,7 +2,7 @@ import pigpio
 import time
 import numpy as np
 
-def GetAvgSensorDataOverTime():
+def DetectAve():
     AvgObstacleInterference = [0, 0, 0, 0]
     
     sensor1_data, sensor2_data, sensor3_data, sensor4_data = read_JSR_sensor_data(trigger1, echo1, trigger2, echo2, trigger3, echo3, trigger4, echo4)
@@ -162,12 +162,12 @@ trigger3, echo3 = 23, 24
 trigger4, echo4 = 8, 25
 
 # Call the function to read data from all four sensors
-while True:
-    sensor1_data, sensor2_data, sensor3_data, sensor4_data = read_JSR_sensor_data(trigger1, echo1, trigger2, echo2, trigger3, echo3, trigger4, echo4)
-    #ObstacleArr_data = np.array(check_obstacle(sensor1_data, sensor2_data, sensor3_data, sensor4_data))
-    OvertimeObstacleInterference_data = GetAvgSensorDataOverTime()
-    print(sensor1_data, sensor2_data, sensor3_data, sensor4_data)
-    print("Obstacle Check:", ObstacleArr_data)
-    print("AvgScan: ", OvertimeObstacleInterference_data)
-    #print("")
+if __name__ == "__main__":
+    while True:
+        sensor1_data, sensor2_data, sensor3_data, sensor4_data = read_JSR_sensor_data(trigger1, echo1, trigger2, echo2, trigger3, echo3, trigger4, echo4)
+        #ObstacleArr_data = np.array(check_obstacle(sensor1_data, sensor2_data, sensor3_data, sensor4_data))
+        OvertimeObstacleInterference_data = DetectAve()
+        print(sensor1_data, sensor2_data, sensor3_data, sensor4_data)
+        #print("Obstacle Check:", ObstacleArr_data)
+        print("AvgScan: ", OvertimeObstacleInterference_data)
 
