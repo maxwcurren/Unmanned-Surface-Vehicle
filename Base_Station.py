@@ -7,6 +7,7 @@ import time
 import board
 import digitalio
 import math
+import threading
 
 from PIL import Image, ImageDraw, ImageFont
 import adafruit_ssd1306
@@ -20,7 +21,7 @@ req=0
 throttle=511
 steering=511
 
-controller = InputDevice( '/dev/input/event5') # set up input from game controller using evdev library to decode gamepad input
+controller = InputDevice( '/dev/input/event2') # set up input from game controller using evdev library to decode gamepad input
 serial_port = '/dev/ttyS0'
 test_data="this"
 ser = serial.Serial(serial_port, baudrate=115200,timeout=1)
@@ -100,7 +101,7 @@ def receive_Lora(max_retries=15):
 def request():
     #write to request data from USV
     global req
-    
+    start_time = time.time()
     req=1
     print(f"Request is: {req}")
     test_data = '*' + str(req) + '&' + str(mode) + '^' + str(throttle) + '%' + str(steering) + '+\n' 
@@ -133,17 +134,18 @@ def request():
             draw.text((0, 48), "Mag: " + str(Mag), font=font, fill=255)
             oled.image(image)
             oled.show()
+    print(f"req time: {time.time() - start_time}")
             
 def sendWaypoints(lon, lat, ret, max_retries=1):
     retry_count = 0
     while retry_count < max_retries:
         for i in range(1,4):
-            lon_data = '&' + '?'.join(map(str, map(lambda x: math.floor(x*10000), lon))) + '!' + str(ret)
+            lon_data = '_' + '?'.join(map(str, map(lambda x: math.floor(x*10000), lon))) + '!' + str(ret)
             print(f"lon data: {lon_data}")
             transmit_Lora(lon_data)
             time.sleep(2)
         for i in range(1,4):        
-            lat_data = '_' + '?'.join(map(str, map(lambda x: math.floor(x*10000), lat))) + '!' + str(ret)
+            lat_data = '&' + '?'.join(map(str, map(lambda x: math.floor(x*10000), lat))) + '!' + str(ret)
             print(f"lat data: {lat_data}")
             transmit_Lora(lat_data)
             retry_count += 1
@@ -194,19 +196,21 @@ def Auto():
                     mode = 1
                     Manual()
 
-                if categorize(event).keycode[0] == "BTN_A":  # press A to get data
-                    current_time = time.time()
-
+                #if categorize(event).keycode[0] == "BTN_A":  # press A to get data
+                #    current_time = time.time()
+                #
                     # Check if the button state has changed to down
-                    if event.value == 1 and last_a_state == 0:
-                        last_a_state = 1
-                        last_a_press_time = current_time
+                #    if event.value == 1 and last_a_state == 0:
+                #        last_a_state = 1
+                #        last_a_press_time = current_time
 
                     # Check if the button state has changed to up and debounce
-                    elif event.value == 0 and last_a_state == 1:
-                        if (current_time - last_a_press_time) > debounce_delay:
-                            request()
-                        last_a_state = 0
+                #    elif event.value == 0 and last_a_state == 1:
+                #        if (current_time - last_a_press_time) > debounce_delay:
+                #            request()
+                #        last_a_state = 0
+                
+                request()
             else:
                 break
            
@@ -275,7 +279,8 @@ def Manual():
                     value = event.value 
                                                                                 # make sent value between 0-->1024
                     if value==-1:
-                        throttle=651
+                        #throttle=651
+                        throttle=610
                     elif value==1:
                         throttle=401
                     else:
@@ -313,6 +318,14 @@ def Manual():
                     print(test_data)
                     #print("request is", request)
 
+def IRQ():
+    global mode
+    while True:
+        if mode == 0:
+            print("calling reqest")
+            request()
+            time.sleep(6)
+        
 app = GUI.start_GUI()
 waypoint_lon, waypoint_lat = app.get_final_coordinates()
 return_method = app.get_return_method()
@@ -320,4 +333,8 @@ print(f"Waypoint Lon: {waypoint_lon}")
 print(f"Waypoint Lat: {waypoint_lat}")
 print(f"Return Method: {return_method}")
 sendWaypoints(waypoint_lon, waypoint_lat, return_method)
+
+IRQ_thread = threading.Thread(target=IRQ)
+IRQ_thread.start()
+
 Manual()
