@@ -1,12 +1,10 @@
-from math import floor
 from adafruit_rplidar import RPLidar
 import time
 
 # Setup the RPLidar
-PORT_NAME = "/dev/ttyUSB1"
 lidar = RPLidar(None, '/dev/ttyUSB1', timeout=3)
 
-def scan_lidar(duration):
+def scan_lidar(duration, max_distance=500):
     lidar.connect()
     time.sleep(0.1)
     AngleArr = []
@@ -18,8 +16,10 @@ def scan_lidar(duration):
             for _, angle, distance in scan:
                 if time.time() - start_time > duration:
                     raise StopIteration  # Stop the iteration after the specified duration
-                AngleArr.append(angle)
-                DistanceArr.append(distance)
+
+                if distance <= max_distance:
+                    AngleArr.append(angle)
+                    DistanceArr.append(distance)
 
     except StopIteration:
         pass  # This exception is caught to exit the loop when the specified duration is reached
@@ -30,10 +30,15 @@ def scan_lidar(duration):
     return DistanceArr, AngleArr
 
 if __name__ == "__main__":
-    scan_duration = 2  # Set the duration in seconds
-    distances, angles = scan_lidar(scan_duration)
+    while True:
+        try:
+            scan_duration = 5  # Set the duration in seconds
+            max_allowed_distance = 500  # Set the maximum allowed distance in mm
+            distances, angles = scan_lidar(scan_duration, max_allowed_distance)
 
-    print(len(distances))
-    print(len(angles))
-    print(f"distances: {distances}")
-    print(f"angles: {angles}")
+            #print(len(distances))
+            #print(len(angles))
+            print(f"distances: {distances}")
+            print(f"angles: {angles}")
+        except:
+            print("error")
