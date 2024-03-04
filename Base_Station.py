@@ -85,14 +85,6 @@ def receive_Lora(max_retries=15):
         time.sleep(0.1)
 
     #print(f"Exceeded maximum retries ({max_retries})")
-    draw.rectangle((0, 0, oled.width, oled.height), outline=0, fill=0)
-    draw.text((0, 0), "ERROR", font=font, fill=255)
-    draw.text((0, 16), "No Data Received" , font=font, fill=255)
-    draw.text((0, 48), "Press A to try again", font=font, fill=255)
-    oled.image(image)
-    oled.show()
-    time.sleep(2)
-    dPrntA()
     print("Error receiving sensor data")
     response = ""
     error = 1
@@ -109,14 +101,6 @@ def request():
     req=0
     transmit_Lora(test_data)
     #read mode
-    draw.rectangle((0, 0, oled.width, oled.height), outline=0, fill=0)
-    draw.text((0, 0), "Request pending", font=font, fill=255)
-    draw.text((0, 16), "//////////" , font=font, fill=255)
-    draw.text((0, 32), "///////" , font=font, fill=255)
-    draw.text((0, 48), "///// "  , font=font, fill=255)
-    draw.text((0, 48), "// "  , font=font, fill=255)
-    oled.image(image)
-    oled.show()
     time.sleep(1)
     info, error = receive_Lora()
     if error != 1:
@@ -280,7 +264,7 @@ def Manual():
                                                                                 # make sent value between 0-->1024
                     if value==-1:
                         #throttle=651
-                        throttle=610
+                        throttle=585
                     elif value==1:
                         throttle=401
                     else:
@@ -332,6 +316,14 @@ return_method = app.get_return_method()
 print(f"Waypoint Lon: {waypoint_lon}")
 print(f"Waypoint Lat: {waypoint_lat}")
 print(f"Return Method: {return_method}")
+draw.rectangle((0, 0, oled.width, oled.height), outline=0, fill=0)
+draw.text((0, 0), "Sending Waypoints", font=font, fill=255)
+draw.text((0, 16), "//////////" , font=font, fill=255)
+draw.text((0, 32), "///////" , font=font, fill=255)
+draw.text((0, 48), "///// "  , font=font, fill=255)
+draw.text((0, 48), "// "  , font=font, fill=255)
+oled.image(image)
+oled.show()
 sendWaypoints(waypoint_lon, waypoint_lat, return_method)
 
 IRQ_thread = threading.Thread(target=IRQ)
