@@ -46,9 +46,6 @@ def lidar_scan_thread(duration):
         try:
             global distances, angles
             distances, angles = Lidar.scan_lidar(duration)
-            #if len(distances) == None:
-            #    distances.append(0)
-            #    angles.append(0)
             #print(f"distances: {distances}")
             #print(f"angles: {angles}")
         except Exception as e:
@@ -60,7 +57,7 @@ def detectObject(current_heading, distances, angles, ultrasonic_ave):
     print(f"Current Heading: {current_heading}")
     
     if len(angles) != 0 or ultrasonic_ave[1]:
-        # Lidar detected an object
+        # Lidar or ultrasonics detected an object
         if any(330 <= angle <= 360 or 0 <= angle <= 30 for angle in angles) or ultrasonic_ave[1]:
             # If there is an object detected in the current path of the USV
             object_detected = 1
@@ -136,7 +133,6 @@ def pid_controller(current_heading, waypoint_lon, waypoint_lat, current_lon, cur
     target_heading = math.atan2(delta_lon, delta_lat)
     
     # Normalize the target_heading to the range [0, 360)
-    # Normalize the target_heading to the range [0, 360)
     target_heading_degrees = (math.degrees(target_heading) + 360) % 360
     print(f"Ideal Heading: {target_heading_degrees}")
     # Calculate the error
@@ -145,8 +141,6 @@ def pid_controller(current_heading, waypoint_lon, waypoint_lat, current_lon, cur
     # Calculate the PD components
     proportional = Kp_yaw * error
     derivative = Kd_yaw * (error - prev_error)
-    #print(f"Proportional: {proportional}")
-    #print(f"Derivative: {derivative}")
     
     # Calculate the PD output
     pid_output = proportional + derivative
@@ -334,7 +328,7 @@ def auto():
     global throttle, steering, req, distances, distances_prev, angles, angles_prev
     #t1 = time.time()
     # IN AUTO MODE
-    throttle = 511
+    throttle = 585
     # Read GPS Module for coordinates
     gps_lon, gps_lat = GPS.getGPS()
     #print(f"gps_lon: {gps_lon}")
@@ -347,7 +341,7 @@ def auto():
 
     # Check for objects with ultrasonics    
     ultrasonic_obstacles, _, _, _, _ = Ultrasonic.detObj()
-    print(f"ultrasonics: {ultrasonic_obstacles}")
+    #print(f"ultrasonics: {ultrasonic_obstacles}")
     
     # Get target yaw using PID or object detected function
     target_yaw = getNextHeading(current_yaw, distances, angles, waypoint_lon[waypoint_count], waypoint_lat[waypoint_count], gps_lon1, gps_lat1, return_method, ultrasonic_obstacles)
@@ -364,21 +358,17 @@ def auto():
         # Wait for ACK before moving on
         transmit_Lora(data)
         req = 0
-    else:
-        pass
-        #print("No Data request")
-    #print(f"auto mode time: {time.time() - t1}")
 
 # Get waypoints:
-#waypoint_lon, waypoint_lat, return_method = receive_Way_Ret()
-#print("Received Waypoints")
-#waypoint_num = len(waypoint_lon)
+waypoint_lon, waypoint_lat, return_method = receive_Way_Ret()
+print("Received Waypoints")
+waypoint_num = len(waypoint_lon)
 
 #Sample waypoints
-waypoint_lon = [33.89021, 33.89109, 33.89084, 33.88992, 33.88928]
-waypoint_lat = [-117.46711, -117.46649, -117.46769, -117.46800, -117.46750]
-waypoint_num = len(waypoint_lon)
-return_method = 1
+#waypoint_lon = [33.89021, 33.89109, 33.89084, 33.88992, 33.88928]
+#waypoint_lat = [-117.46711, -117.46649, -117.46769, -117.46800, -117.46750]
+#waypoint_num = len(waypoint_lon)
+#return_method = 1
 
 scan_duration = 2  # Set the duration in seconds
 lidar_thread = threading.Thread(target=lidar_scan_thread, args=(scan_duration,))
