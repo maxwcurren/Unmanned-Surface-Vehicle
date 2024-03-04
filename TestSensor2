@@ -1,6 +1,11 @@
 from gpiozero import DistanceSensor
 import time
 import numpy as np
+import warnings
+
+
+    # Your sensor retrieval code
+
 
 def GetAvgSensorDataOverTime():
     AvgObstacleInterference = [0, 0, 0, 0]
@@ -8,13 +13,13 @@ def GetAvgSensorDataOverTime():
     sensor1_data, sensor2_data, sensor3_data, sensor4_data = read_JSR_sensor_data(trigger1, echo1, trigger2, echo2, trigger3, echo3, trigger4, echo4)
     
     ObstacleArr_data = np.array(check_obstacle(sensor1_data, sensor2_data, sensor3_data, sensor4_data))
-    time.sleep(0.5)
+    #time.sleep(0.5)
     
     ObstacleArr_data2 = np.array(check_obstacle(sensor1_data, sensor2_data, sensor3_data, sensor4_data))
-    time.sleep(0.5)
+    #time.sleep(0.5)
     
     ObstacleArr_data3 = np.array(check_obstacle(sensor1_data, sensor2_data, sensor3_data, sensor4_data))
-    time.sleep(0.5)
+    #time.sleep(0.5)
     
     sum_ObstacleArr =  ObstacleArr_data + ObstacleArr_data2 + ObstacleArr_data3
     
@@ -42,9 +47,9 @@ def check_obstacle(sensor1_data, sensor2_data, sensor3_data, sensor4_data):
         ObstacleVal.append(0)
     return ObstacleVal
 
-GetDist(echo, trigger, max_distance)
-    range = DistanceSensor(echo, trigger, max_distance)
-    dist = (range.distance) * 39.37
+def GetDist(echo, trigger):
+    range = DistanceSensor(echo, trigger)
+    dist = (range.distance)
     return dist
 
 # Define GPIO pins for the sensors
@@ -53,20 +58,27 @@ trigger2, echo2 = 22, 27
 trigger3, echo3 = 23, 24
 trigger4, echo4 = 8, 25
 
+trigger = [trigger1, trigger2, trigger3, trigger4]
+echo = [echo1, echo2, echo3, echo4]
+
 EchoArr = [18, 27, 24, 25]
 TrigArr = [17, 22, 23, 8]
 
 # Call the function to read data from all four sensors
 while True:
-    for i in range(len(EchoArr)):
-        if i == 0:
-            sensor1_data = GetDist(EchoArr[i], trigger[i], max_distance)
-        elif  i == 1
-            sensor2_data = GetDist(EchoArr[i], trigger[i], max_distance)
-        elif  i == 2
-            sensor3_data = GetDist(EchoArr[i], trigger[i], max_distance)
-        else
-            sensor4_data = GetDist(EchoArr[i], trigger[i], max_distance)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        for i in range(len(EchoArr)):
+            if i == 0:
+                sensor1_data = GetDist(EchoArr[i], trigger[i]) * 1000.0
+            elif  i == 1:
+                sensor2_data = GetDist(EchoArr[i], trigger[i]) * 1000.0
+            elif  i == 2:
+                sensor3_data = GetDist(EchoArr[i], trigger[i]) * 1000.0
+            else:
+                sensor4_data = GetDist(EchoArr[i], trigger[i]) * 1000.0
+        print(f"S1: {sensor1_data}, S2: {sensor2_data},  S3: {sensor3_data}, S4: {sensor4_data}")
+
     #ObstacleArr_data = np.array(check_obstacle(sensor1_data, sensor2_data, sensor3_data, sensor4_data))
     #OvertimeObstacleInterference_data = GetAvgSensorDataOverTime()
     #print(sensor1_data, sensor2_data, sensor3_data, sensor4_data)
