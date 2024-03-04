@@ -52,14 +52,14 @@ void loop() {
     }
     
   int throttle = map(EscInput, 0, 1024, 60, 125); //maps input 0-1023 to output
-  int steering = map(ServoInput, 0, 1024, 10, 170);
+  int steering = map(ServoInput, 1024, 0, 10, 170);
 
-  Serial.print("Thrott: ");
-  Serial.print(throttle);
-  Serial.print("\n");
-  Serial.print("Steer: ");
-  Serial.print(steering);
-  Serial.print("\n");
+  //Serial.print("Thrott: ");
+  //Serial.print(throttle);
+  //Serial.print("\n");
+  //Serial.print("Steer: ");
+  //Serial.print(steering);
+  //Serial.print("\n");
   esc.write(throttle);
   servo.write(steering);
 }
