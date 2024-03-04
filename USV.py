@@ -6,6 +6,8 @@ import Lidar
 import math
 import struct
 import re
+import threading
+import Ultrasonic
 
 QMC = QMC5883L()
 mpu6050 = MPU6050()
@@ -25,50 +27,65 @@ waypoint_count = 0
 mode = 1
 req = 0
 throttle = 511
-steering = 511
-distances_prev = []
+steering = 512
+
+# Global variables for shared data
 distances = []
-angles_prev = []
 angles = []
+scan_lock = threading.Lock()
+distances_prev = []
+angles_prev = []
 
 # Define PID variables:
-Kp_yaw, Kd_yaw = 2, 1.88
+Kp_yaw, Kd_yaw = 5, 1.88
 prev_error = 0.0
 cumulative_error = 0.0
 
+def lidar_scan_thread(duration):
+    while True:
+        try:
+            global distances, angles
+            distances, angles = Lidar.scan_lidar(duration)
+            #if len(distances) == None:
+            #    distances.append(0)
+            #    angles.append(0)
+            #print(f"distances: {distances}")
+            #print(f"angles: {angles}")
+        except Exception as e:
+            print(f"Lidar thread encountered an exception: {e}")
+
+
 # PATHING FUNCTIONS
-def detectObject(current_heading, distances, angles):
+def detectObject(current_heading, distances, angles, ultrasonic_ave):
     print(f"Current Heading: {current_heading}")
     
-    # Find the difference between the current_heading and each angle in angles
-    angle_diff = [abs(current_heading - angle) for angle in angles]
-    
-    # Find the index of the minimum difference
-    min_diff_index = angle_diff.index(min(angle_diff))
-    
-    # Get the nearest angle and corresponding distance
-    nearest_angle = angles[min_diff_index]
-    nearest_distance = distances[min_diff_index]
-
-    if current_heading - 15 <= nearest_angle <= current_heading + 15:
-        # If there is an object detected in the current path of the USV
-        object_detected = 1
-        if nearest_angle <= current_heading:
-            # If the object is to the right of the threshold window or directly in front, then adjust heading of the USV to the left.
-            new_heading = (current_heading + 30) % 360
+    if len(angles) != 0 or ultrasonic_ave[1]:
+        # Lidar detected an object
+        if any(330 <= angle <= 360 or 0 <= angle <= 30 for angle in angles) or ultrasonic_ave[1]:
+            # If there is an object detected in the current path of the USV
+            object_detected = 1
+            print("Object in front of USV")
         else:
-            # If the object is to the left of the threshold window adjust the heading of the USV to the right.
-            new_heading = (current_heading - 30) % 360
+            object_detected = 0
     else:
         object_detected = 0
-        new_heading = current_heading
-
+                
+    if ultrasonic_ave[0]:
+        print("Object to the left of USV")
+    if ultrasonic_ave[2]:
+        print("Object to the right of USV")
+    if ultrasonic_ave[3]:
+        # Depth ultrasonic detects too shallow
+        print("Water too shallow")
+        print("Not yet implemented")
+        
     print(f"Object Detected: {object_detected}")
-    return object_detected, new_heading
+    return object_detected
 
-def getNextHeading(current_heading, distances, angles, waypoint_lon, waypoint_lat, current_lon, current_lat, return_method):
+def getNextHeading(current_heading, distances, angles, waypoint_lon, waypoint_lat, current_lon, current_lat, return_method, ultrasonic_ave):
     global waypoint_count, waypoint_num, starting_lon, starting_lat
     # Calculate distance to waypoint
+    print("getting next heading")
     delta_lon = waypoint_lon - current_lon
     delta_lat = waypoint_lat - current_lat
     distance_to_waypoint = math.sqrt((delta_lon)**2 + (delta_lat)**2)
@@ -77,17 +94,17 @@ def getNextHeading(current_heading, distances, angles, waypoint_lon, waypoint_la
         waypoint_count += 1
 
     if waypoint_count <= waypoint_num:
-        object_detected, pot_heading = detectObject(current_heading, distances, angles)
-
+        object_detected = detectObject(current_heading, distances, angles, ultrasonic_ave)
+                
+        # OBJECT DETECTION
         if object_detected == 1:
-            new_heading = pot_heading
-        else:
-            pid_output = pid_controller(current_heading, waypoint_lon, waypoint_lat, current_lon, current_lat)
-            # Add saturation limits to prevent sudden adjustments
-            # pid_output = max(min(pid_output, max_output), min_output)
-            new_heading = pid_output
+            new_heading = (current_heading + 120) % 360
+            return map_to_servo(current_heading, new_heading)
 
-        return new_heading
+        # PID
+        elif object_detected == 0:
+            new_heading = pid_controller(current_heading, waypoint_lon, waypoint_lat, current_lon, current_lat)
+            return new_heading
 
     # Check if it's time to return
     elif waypoint_count == waypoint_num + 1:
@@ -119,6 +136,7 @@ def pid_controller(current_heading, waypoint_lon, waypoint_lat, current_lon, cur
     target_heading = math.atan2(delta_lon, delta_lat)
     
     # Normalize the target_heading to the range [0, 360)
+    # Normalize the target_heading to the range [0, 360)
     target_heading_degrees = (math.degrees(target_heading) + 360) % 360
     print(f"Ideal Heading: {target_heading_degrees}")
     # Calculate the error
@@ -127,23 +145,49 @@ def pid_controller(current_heading, waypoint_lon, waypoint_lat, current_lon, cur
     # Calculate the PD components
     proportional = Kp_yaw * error
     derivative = Kd_yaw * (error - prev_error)
-    print(f"Proportional: {proportional}")
-    print(f"Derivative: {derivative}")
+    #print(f"Proportional: {proportional}")
+    #print(f"Derivative: {derivative}")
     
     # Calculate the PD output
     pid_output = proportional + derivative
     # Update previous error
     prev_error = error
     
-    return pid_output
+    # Calculate the proportional servo value based on the PID output
+    proportional_servo = pid_output * (1022 - 2) / 360
+    
+    # Calculate the final servo value
+    final_servo_value = int(round(510 + proportional_servo))
+    final_servo_value -= final_servo_value % 2  # Adjust to the nearest even number
 
-def mapYaw(yaw):
-    # MAPS YAW FROM 0 TO 1022 ALL EVEN NUMBERS
-    print(f"yaw: {yaw}")
-    mapped_value = int(yaw * (1022 / 360))
-    mapped_value = mapped_value - (mapped_value % 2)
-    print(f"Mapped Steering: {mapped_value}")
-    return mapped_value
+    # Ensure the servo value stays within the valid range
+    print(f"Mapped Steering: {final_servo_value}")
+    return max(min(final_servo_value, 1022), 2)
+
+def map_to_servo(current_heading, desired_heading):
+    # Define the range of servo values and the middle value
+    servo_min = 2
+    servo_max = 1022
+    servo_middle = 510  # Middle value
+    
+    # Calculate the difference between the current heading and the desired heading
+    heading_difference = abs(current_heading - desired_heading)
+    
+    # Calculate a factor to adjust the proportional servo value
+    adjustment_factor = heading_difference / 180  # Normalize to the range [0, 1]
+    
+    # Calculate the proportional servo value based on the desired heading
+    proportional_servo = (desired_heading / 360) * (servo_max - servo_min)
+    
+    # Adjust the proportional servo value based on the adjustment factor
+    adjusted_proportional_servo = servo_middle + (proportional_servo - servo_middle) * adjustment_factor
+    
+    # Round to the nearest even integer
+    final_servo_value = int(round(adjusted_proportional_servo))
+    final_servo_value -= final_servo_value % 2  # Ensure even number
+    
+    # Ensure the servo value stays within the valid range
+    return max(min(final_servo_value, servo_max), servo_min)
 
 # LORA FUNCTIONS
 def parse(sentence):
@@ -201,9 +245,9 @@ def receive_Way_Ret():
     print("Waiting for waypoints")
     while not (lon and lat and ret != 2):
         response = receive_Lora()
-        print(f"lon: {lon}")
-        print(f"lat: {lat}")
-        print(f"ret: {ret}")
+        #print(f"lon: {lon}")
+        #print(f"lat: {lat}")
+        #print(f"ret: {ret}")
         if 'ERR' not in response:
             if '!' in response:
                 if '_' in response:
@@ -269,84 +313,95 @@ def parse_lat(response):
 
     return lat_values, ret
     
-def send_arduino(throttle, steering):
-    ser.write(struct.pack('<h', int(throttle)))
-    ser.flush()
-    print(f"Steering Sent to Arduino: {steering}")
-    ser.write(struct.pack('<h', int(steering)))
-    ser.flush()
+def send_arduino(throttle, steering, timeout=3):
+    try:
+        ser.write(struct.pack('<h', int(throttle)))
+        time.sleep(0.1)  # Add a small delay
+        ser.write(struct.pack('<h', int(steering)))
+        time.sleep(0.1)  # Add another small delay
+    except Exception as e:
+        print(f"Error writing to serial port: {e}")
+
 
 def manual():
     global throttle, steering
     # IN MANUAL MODE
+    print(f"throttle: {throttle}")
+    print(f"steering: {steering}")
+    time.sleep(0.5)
     send_arduino(throttle, steering)
 def auto():
     global throttle, steering, req, distances, distances_prev, angles, angles_prev
+    #t1 = time.time()
     # IN AUTO MODE
-    throttle = 711
+    throttle = 511
     # Read GPS Module for coordinates
-    time_before = time.time()
     gps_lon, gps_lat = GPS.getGPS()
+    #print(f"gps_lon: {gps_lon}")
+    #print(f"gps_lat: {gps_lat}")
     gps_lon1 = gps_lon / 10000
     gps_lat1 = gps_lat / 10000
     # Read magnetometer
-    current_yaw = QMC.get_bearing()
+    current_yaw = QMC.get_bearing() + 27
+    #print(f"current_yaw: {current_yaw}")
 
-    # Check for objects
-    distances, angles = Lidar.scan_lidar()
-    time_after = time.time()
-    sensor_time = time_after - time_before
-
-    if len(distances) == 0:
-        distances = distances_prev.copy()
-        angles = angles_prev.copy() 
-    else:
-        distances_prev = distances.copy() 
-        angles_prev = angles.copy() 
-
+    # Check for objects with ultrasonics    
+    ultrasonic_obstacles, _, _, _, _ = Ultrasonic.detObj()
+    print(f"ultrasonics: {ultrasonic_obstacles}")
+    
     # Get target yaw using PID or object detected function
-    target_yaw = getNextHeading(current_yaw, distances, angles, waypoint_lon[waypoint_count], waypoint_lat[waypoint_count], gps_lon1, gps_lat1, return_method)
-    # MAP setpoints to 0 to 1022 for yaw and send to Arduino for motor control
-    steering = mapYaw(target_yaw)
+    target_yaw = getNextHeading(current_yaw, distances, angles, waypoint_lon[waypoint_count], waypoint_lat[waypoint_count], gps_lon1, gps_lat1, return_method, ultrasonic_obstacles)
+    print(f"Taget Heading: {target_yaw}")
+    steering = target_yaw
 
     # Send motor controls to Arduino
     send_arduino(throttle, steering)
 
     # Send data if requested
     if req == 1:
-        print("Data Request")
+        #print("Data Request")
         data = '*' + str(gps_lon) + '&' + str(gps_lat) + '^' + str(math.floor(current_yaw)) + '+'            
         # Wait for ACK before moving on
         transmit_Lora(data)
         req = 0
     else:
-        print("No Data request")
+        pass
+        #print("No Data request")
+    #print(f"auto mode time: {time.time() - t1}")
 
 # Get waypoints:
-waypoint_lon, waypoint_lat, return_method = receive_Way_Ret()
-print("Received Waypoints")
+#waypoint_lon, waypoint_lat, return_method = receive_Way_Ret()
+#print("Received Waypoints")
+#waypoint_num = len(waypoint_lon)
+
+#Sample waypoints
+waypoint_lon = [33.89021, 33.89109, 33.89084, 33.88992, 33.88928]
+waypoint_lat = [-117.46711, -117.46649, -117.46769, -117.46800, -117.46750]
 waypoint_num = len(waypoint_lon)
+return_method = 1
+
+scan_duration = 2  # Set the duration in seconds
+lidar_thread = threading.Thread(target=lidar_scan_thread, args=(scan_duration,))
+lidar_thread.start()
+
 
 while True:
     # RECEIVE MANUAL CONTROLS OVER LORA
-    time.sleep(0.1)
+    #time.sleep(0.1)
     response = receive_Lora()
     # Filter response
+    #print(f"response: {response}")
+    #print("in while loop")
     if 'ERR' not in response:
+        #print(f"response: {response}")
         if '%' in response and '^' in response and '&' in response and '+' in response and '*' in response:
             # If data successfully sent over LoRa
             result = parse(response)
             if result is not None:
                 req, mode, throttle, steering = result
-                if mode == 0:
-                    print("Auto Mode")
-                else:
-                    print("Manual Mode")
-                print("throttle is", throttle)
-                print("steering is", steering)
-                if mode == 1:
-                    manual()
-                elif mode == 0:
-                    auto()
-
-                        
+        if mode == 1:
+            #print("going to manual")
+            manual()
+        elif mode == 0:
+            #print("going to auto")
+            auto()
