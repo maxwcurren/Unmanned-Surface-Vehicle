@@ -1,48 +1,14 @@
 import pigpio
 import time
-import numpy as np
 
-def DetectAve():
-    AvgObstacleInterference = [0, 0, 0, 0]
-    
-    sensor1_data, sensor2_data, sensor3_data, sensor4_data = read_JSR_sensor_data(trigger1, echo1, trigger2, echo2, trigger3, echo3, trigger4, echo4)
-    
-    ObstacleArr_data = np.array(check_obstacle(sensor1_data, sensor2_data, sensor3_data, sensor4_data))
-    time.sleep(0.75)
-    
-    ObstacleArr_data2 = np.array(check_obstacle(sensor1_data, sensor2_data, sensor3_data, sensor4_data))
-    time.sleep(0.75)
-    
-    ObstacleArr_data3 = np.array(check_obstacle(sensor1_data, sensor2_data, sensor3_data, sensor4_data))
-    time.sleep(0.75)
-    
-    sum_ObstacleArr =  ObstacleArr_data + ObstacleArr_data2 + ObstacleArr_data3
-    
-    for i in range(4):
-        AvgObstacleInterference[i] = sum_ObstacleArr[i] // 3
-    return AvgObstacleInterference
+# Define GPIO pins for the sensors
+trigger1, echo1 = 17, 18
+trigger2, echo2 = 22, 27
+trigger3, echo3 = 23, 24
+trigger4, echo4 = 8, 25
 
-def check_obstacle(sensor1_data, sensor2_data, sensor3_data, sensor4_data):
-    ObstacleVal = []
-    if 35 <= sensor1_data <= 90:
-        ObstacleVal.append(1)
-    else:
-        ObstacleVal.append(0)
-    if 35 <= sensor2_data <= 90:
-        ObstacleVal.append(1)
-    else:
-        ObstacleVal.append(0)
-    if 35 <= sensor3_data <= 90:
-        ObstacleVal.append(1)
-    else:
-        ObstacleVal.append(0)
-    if 10 <= sensor4_data <= 35:
-        ObstacleVal.append(1)
-    else:
-        ObstacleVal.append(0)
-    return ObstacleVal
-
-def read_JSR_sensor_data(trigger1, echo1, trigger2, echo2, trigger3, echo3, trigger4, echo4):
+def detObj():
+    global trigger1, echo1, trigger2, echo2, trigger3, echo3, trigger4, echo4
     # Initialize pigpio
     pi = pigpio.pi()
 
@@ -147,27 +113,29 @@ def read_JSR_sensor_data(trigger1, echo1, trigger2, echo2, trigger3, echo3, trig
 
         # Clean up GPIO
         pi.stop()
-
-        return distance_inches1, distance_inches2, distance_inches3, distance_inches4
+        
+        obj_array = filter_values(distance_inches1, distance_inches2, distance_inches3, distance_inches4)
+        #return distance_inches1, distance_inches2, distance_inches3, distance_inches4
+        return obj_array, distance_inches1, distance_inches2, distance_inches3, distance_inches4
 
     except KeyboardInterrupt:
         print("Stopping the sensor reading.")
         pi.stop()
 
-
-# Define GPIO pins for the sensors
-trigger1, echo1 = 17, 18
-trigger2, echo2 = 22, 27
-trigger3, echo3 = 23, 24
-trigger4, echo4 = 8, 25
+def filter_values(left, front, right, bottom):
+    object_arr = [0,0,0,0]
+    object_arr[0] = 0 if left > 100 else 1
+    object_arr[1] = 0 if front > 70 else 1
+    object_arr[2] = 0 if right > 100 else 1
+    object_arr[3] = 0 if bottom > 30 else 1
+    return object_arr
 
 # Call the function to read data from all four sensors
 if __name__ == "__main__":
     while True:
-        sensor1_data, sensor2_data, sensor3_data, sensor4_data = read_JSR_sensor_data(trigger1, echo1, trigger2, echo2, trigger3, echo3, trigger4, echo4)
-        #ObstacleArr_data = np.array(check_obstacle(sensor1_data, sensor2_data, sensor3_data, sensor4_data))
-        OvertimeObstacleInterference_data = DetectAve()
-        print(sensor1_data, sensor2_data, sensor3_data, sensor4_data)
-        #print("Obstacle Check:", ObstacleArr_data)
-        print("AvgScan: ", OvertimeObstacleInterference_data)
+        obj, l, f, r, b = detObj()
+        print(f"left: {l}, front: {f}, right: {r}, bottom: {b}")
+        print(f"obj array: {obj}")
+        time.sleep(1)
+
 
