@@ -368,8 +368,8 @@ def auto():
     #t1 = time.time()
     # IN AUTO MODE
     print("In Auto")
-    #throttle = 585
-    throttle = 511
+    throttle = 585
+    #throttle = 511
     # Read GPS Module for coordinates
     gps_lon, gps_lat = GPS.getGPS()
     #print(f"gps_lon: {gps_lon}")
