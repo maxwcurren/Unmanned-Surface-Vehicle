@@ -124,9 +124,10 @@ def detObj():
 
 def filter_values(left, front, right, bottom):
     object_arr = [0,0,0,0]
-    object_arr[0] = 0 if left > 75 else 1
-    object_arr[1] = 0 if front > 75 else 1
-    object_arr[2] = 0 if right > 75 else 1
+    # If object over 2 meters away, ignore.
+    object_arr[0] = 0 if left > 78.7402 else 1
+    object_arr[1] = 0 if front > 78.7402 else 1
+    object_arr[2] = 0 if right > 78.7402 else 1
     object_arr[3] = 0 if bottom > 30 else 1
     return object_arr
 
