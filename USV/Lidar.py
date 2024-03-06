@@ -33,7 +33,7 @@ if __name__ == "__main__":
     while True:
         try:
             scan_duration = 5  # Set the duration in seconds
-            max_allowed_distance = 500  # Set the maximum allowed distance in mm
+            max_allowed_distance = 2000  # Set the maximum allowed distance in mm
             distances, angles = scan_lidar(scan_duration, max_allowed_distance)
 
             #print(len(distances))
