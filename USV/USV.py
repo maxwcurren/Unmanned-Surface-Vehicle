@@ -8,10 +8,12 @@ import struct
 import re
 import threading
 import Ultrasonic
+from adafruit_rplidar import RPLidar
 
 QMC = QMC5883L()
 mpu6050 = MPU6050()
-ser = serial.Serial('/dev/ttyACM0', 1200, timeout=1)  # set up serial output for Arduino
+ard_port = '/dev/ttyACM0'
+ser = serial.Serial(ard_port, 1200, timeout=1)  # set up serial output for Arduino
 lora = serial.Serial('/dev/ttyS0', baudrate=115200, timeout=0)  # set up LoRa
 
 # Get starting position of USV
@@ -50,7 +52,18 @@ def lidar_scan_thread(duration):
             #print(f"angles: {angles}")
         except Exception as e:
             print(f"Lidar thread encountered an exception: {e}")
-
+            
+def ultrasonic_scan_thread():
+    while True:
+        # Check for objects with ultrasonics
+        try:
+            global ultrasonic_obstacles
+            ultrasonic_obstacles, _, _, _, _ = Ultrasonic.detObj()
+        except:
+            #print(f"error retrieving ultrasonic data")
+            ultrasonic_obstacles = [0,0,0,0]
+        #print(f"ultrasonics: {ultrasonic_obstacles}")
+        time.sleep(3)
 
 # PATHING FUNCTIONS
 def detectObject(current_heading, distances, angles, ultrasonic_ave):
@@ -68,13 +81,16 @@ def detectObject(current_heading, distances, angles, ultrasonic_ave):
         object_detected = 0
                 
     if ultrasonic_ave[0]:
-        print("Object to the left of USV")
+        #print("Object to the left of USV")
+        pass
     if ultrasonic_ave[2]:
-        print("Object to the right of USV")
+        #print("Object to the right of USV")
+        pass
     if ultrasonic_ave[3]:
         # Depth ultrasonic detects too shallow
-        print("Water too shallow")
-        print("Not yet implemented")
+        #print("Water too shallow")
+        #print("Not yet implemented")
+        pass
         
     print(f"Object Detected: {object_detected}")
     return object_detected
@@ -82,7 +98,7 @@ def detectObject(current_heading, distances, angles, ultrasonic_ave):
 def getNextHeading(current_heading, distances, angles, waypoint_lon, waypoint_lat, current_lon, current_lat, return_method, ultrasonic_ave):
     global waypoint_count, waypoint_num, starting_lon, starting_lat
     # Calculate distance to waypoint
-    print("getting next heading")
+    #print("getting next heading")
     delta_lon = waypoint_lon - current_lon
     delta_lat = waypoint_lat - current_lat
     distance_to_waypoint = math.sqrt((delta_lon)**2 + (delta_lat)**2)
@@ -96,6 +112,7 @@ def getNextHeading(current_heading, distances, angles, waypoint_lon, waypoint_la
         # OBJECT DETECTION
         if object_detected == 1:
             new_heading = (current_heading + 120) % 360
+            print(f"Desired heading: {new_heading}")
             return map_to_servo(current_heading, new_heading)
 
         # PID
@@ -118,7 +135,7 @@ def getNextHeading(current_heading, distances, angles, waypoint_lon, waypoint_la
             return new_heading
 
         elif return_method == 1:  # Directly calculate heading towards starting position
-            delta_starting_lon = starting_lon - current_lon
+            deta_starting_lon = starting_lon - current_lon
             delta_starting_lat = starting_lat - current_lat
             return_heading = math.atan2(delta_starting_lon, delta_starting_lat)
             return return_heading
@@ -147,15 +164,22 @@ def pid_controller(current_heading, waypoint_lon, waypoint_lat, current_lon, cur
     # Update previous error
     prev_error = error
     
+    # Calculate next heading
+    next_heading = current_heading + pid_output
+    # Normalize the next_heading to the range [0, 360)
+    next_heading = (next_heading + 360) % 360
+    print(f"Desired heading: {next_heading}")
     # Calculate the proportional servo value based on the PID output
     proportional_servo = pid_output * (1022 - 2) / 360
+    
+    #print(f"Desired heading: {pid_output}")
     
     # Calculate the final servo value
     final_servo_value = int(round(510 + proportional_servo))
     final_servo_value -= final_servo_value % 2  # Adjust to the nearest even number
 
     # Ensure the servo value stays within the valid range
-    print(f"Mapped Steering: {final_servo_value}")
+    #print(f"Mapped Steering: {final_servo_value}")
     return max(min(final_servo_value, 1022), 2)
 
 def map_to_servo(current_heading, desired_heading):
@@ -194,7 +218,7 @@ def parse(sentence):
         steering = int(match.group(6))
 
         if throttle > 1023:
-            throttle = 1023
+            throttle = 511
         if steering > 1022:
             steering = 1022
 
@@ -239,6 +263,7 @@ def receive_Way_Ret():
     print("Waiting for waypoints")
     while not (lon and lat and ret != 2):
         response = receive_Lora()
+        #print(response)
         #print(f"lon: {lon}")
         #print(f"lat: {lat}")
         #print(f"ret: {ret}")
@@ -307,19 +332,33 @@ def parse_lat(response):
 
     return lat_values, ret
     
+
+
 def send_arduino(throttle, steering, timeout=3):
     try:
+        print("Sending throttle")
         ser.write(struct.pack('<h', int(throttle)))
         time.sleep(0.1)  # Add a small delay
+        print("Sending steering")
         ser.write(struct.pack('<h', int(steering)))
         time.sleep(0.1)  # Add another small delay
+        print("Finish sending motor controls")
     except Exception as e:
         print(f"Error writing to serial port: {e}")
 
 
+def is_serial_port_available(port_name):
+    try:
+        ser = serial.Serial(port_name)
+        ser.close()
+        return True
+    except serial.SerialException:
+        return False
+
 def manual():
     global throttle, steering
     # IN MANUAL MODE
+    print("In Manual")
     print(f"throttle: {throttle}")
     print(f"steering: {steering}")
     time.sleep(0.5)
@@ -328,7 +367,9 @@ def auto():
     global throttle, steering, req, distances, distances_prev, angles, angles_prev
     #t1 = time.time()
     # IN AUTO MODE
-    throttle = 585
+    print("In Auto")
+    #throttle = 585
+    throttle = 511
     # Read GPS Module for coordinates
     gps_lon, gps_lat = GPS.getGPS()
     #print(f"gps_lon: {gps_lon}")
@@ -338,16 +379,13 @@ def auto():
     # Read magnetometer
     current_yaw = QMC.get_bearing() + 27
     #print(f"current_yaw: {current_yaw}")
-
-    # Check for objects with ultrasonics    
-    ultrasonic_obstacles, _, _, _, _ = Ultrasonic.detObj()
-    #print(f"ultrasonics: {ultrasonic_obstacles}")
     
     # Get target yaw using PID or object detected function
     target_yaw = getNextHeading(current_yaw, distances, angles, waypoint_lon[waypoint_count], waypoint_lat[waypoint_count], gps_lon1, gps_lat1, return_method, ultrasonic_obstacles)
-    print(f"Taget Heading: {target_yaw}")
+    #print(f"Taget Heading: {target_yaw}")
     steering = target_yaw
-
+    
+    time.sleep(0.5)
     # Send motor controls to Arduino
     send_arduino(throttle, steering)
 
@@ -364,16 +402,12 @@ waypoint_lon, waypoint_lat, return_method = receive_Way_Ret()
 print("Received Waypoints")
 waypoint_num = len(waypoint_lon)
 
-#Sample waypoints
-#waypoint_lon = [33.89021, 33.89109, 33.89084, 33.88992, 33.88928]
-#waypoint_lat = [-117.46711, -117.46649, -117.46769, -117.46800, -117.46750]
-#waypoint_num = len(waypoint_lon)
-#return_method = 1
-
 scan_duration = 2  # Set the duration in seconds
 lidar_thread = threading.Thread(target=lidar_scan_thread, args=(scan_duration,))
 lidar_thread.start()
 
+ultrasonic_thread = threading.Thread(target=ultrasonic_scan_thread)
+ultrasonic_thread.start()
 
 while True:
     # RECEIVE MANUAL CONTROLS OVER LORA
