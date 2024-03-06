@@ -54,6 +54,10 @@ void loop() {
   int throttle = map(EscInput, 0, 1024, 60, 125); //maps input 0-1023 to output
   int steering = map(ServoInput, 1024, 0, 10, 170);
 
+  if (throttle > 600) {throttle = 585;}
+  else if (throttle < 410) {throttle = 410}
+  if (steering > 1022) {steering = 1022;}
+  else if (steering < 2) {steering = 2;}
   //Serial.print("Thrott: ");
   //Serial.print(throttle);
   //Serial.print("\n");
