@@ -20,7 +20,7 @@ void loop() {
       int lastVal=0;
       Serial.readBytes((byte*)&receivedValue, sizeof(int));
       Serial.flush();
-      Serial.println(receivedValue);
+      // Serial.println(receivedValue);
       // Send the processed value back to the Raspberry Pi
       // Serial.write((byte*)&receivedValue, sizeof(int));
       // Serial.flush();
