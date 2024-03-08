@@ -92,7 +92,7 @@ def detectObject(current_heading, distances, angles, ultrasonic_ave):
         #print("Not yet implemented")
         pass
         
-    print(f"Object Detected: {object_detected}")
+    #print(f"Object Detected: {object_detected}")
     return object_detected
 
 def getNextHeading(current_heading, distances, angles, waypoint_lon, waypoint_lat, current_lon, current_lat, return_method, ultrasonic_ave):
@@ -336,13 +336,13 @@ def parse_lat(response):
 
 def send_arduino(throttle, steering, timeout=3):
     try:
-        print("Sending throttle")
+        #print("Sending throttle")
         ser.write(struct.pack('<h', int(throttle)))
         time.sleep(0.1)  # Add a small delay
-        print("Sending steering")
+        #print("Sending steering")
         ser.write(struct.pack('<h', int(steering)))
         time.sleep(0.1)  # Add another small delay
-        print("Finish sending motor controls")
+        #print("Finish sending motor controls")
     except Exception as e:
         print(f"Error writing to serial port: {e}")
 
@@ -367,7 +367,7 @@ def auto():
     global throttle, steering, req, distances, distances_prev, angles, angles_prev
     #t1 = time.time()
     # IN AUTO MODE
-    print("In Auto")
+    #print("In Auto")
     throttle = 585
     #throttle = 511
     # Read GPS Module for coordinates
@@ -392,7 +392,7 @@ def auto():
     # Send data if requested
     if req == 1:
         #print("Data Request")
-        data = '*' + str(gps_lon1) + '&' + str(gps_lat1) + '^' + str(math.floor(current_yaw)) + '+'            
+        data = '*' + str(math.floor(gps_lon1)) + '&' + str(math.floor(gps_lat1)) + '^' + str(math.floor(current_yaw)) + '+'            
         # Wait for ACK before moving on
         transmit_Lora(data)
         req = 0
