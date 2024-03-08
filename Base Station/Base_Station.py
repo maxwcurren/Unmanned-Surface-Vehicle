@@ -14,6 +14,11 @@ import adafruit_ssd1306
 
 import GUI
 
+#arrays for storing previous locations
+longitude=[]
+latitude=[]
+head=[]
+
 maxJs= 65536
 value=0
 mode=1
@@ -21,7 +26,7 @@ req=0
 throttle=511
 steering=511
 
-controller = InputDevice( '/dev/input/event2') # set up input from game controller using evdev library to decode gamepad input
+controller = InputDevice( '/dev/input/event4') # set up input from game controller using evdev library to decode gamepad input
 serial_port = '/dev/ttyS0'
 test_data="this"
 ser = serial.Serial(serial_port, baudrate=115200,timeout=1)
@@ -93,6 +98,12 @@ def receive_Lora(max_retries=15):
 def request():
     #write to request data from USV
     global req
+    
+    #arrays for storing locations
+    global longitude
+    global latitude       
+    global head
+    
     start_time = time.time()
     req=1
     print(f"Request is: {req}")
@@ -109,6 +120,12 @@ def request():
         if response is not None:
             req=0
             lon, lat, Mag = response
+            
+            #add the values once received
+            longitude.append(lon)
+            latitude.append(lat)   
+            head.append(Mag)
+            
             print("Coordinates are: ", lon, lat) 
             print(f"Orientation is {Mag} degrees")
             draw.rectangle((0, 0, oled.width, oled.height), outline=0, fill=0)
@@ -244,10 +261,8 @@ def Manual():
     
     while mode==1:
         current_time = time.time()
-        #print("request is", request)
-        for event in controller.read_loop() :
         
-            
+        for event in controller.read_loop() :
             if event.type == ecodes.EV_KEY:  
                 
                 if categorize(event).keycode[0] =="BTN_WEST":                  # press y button to exit manual
@@ -263,45 +278,44 @@ def Manual():
                     value = event.value 
                                                                                 # make sent value between 0-->1024
                     if value==-1:
-                        #throttle=651
                         throttle=585
                     elif value==1:
                         throttle=401
                     else:
                         throttle=511 
-                    
-                    if throttle % 2 == 0:                                       # make throttle always odd to distinguish in arduino
-                            throttle = throttle + 1
-                    
+                        
                     print("throttle is: " , throttle)
                     test_data = '*' + str(req) + '&' + str(mode) + '^' + str(throttle) + '%' + str(steering) + '+\n'        
                     transmit_Lora(test_data)
                     print(test_data)
-                    #print("request is", request)
-                    
+          
 
-                    
-                         
                 if event.code in axis and axis[ event.code ] == 'dpad_x':       #Read if steering input
-                    
                     value = event.value
-                    
                     if value==1:
                         steering=1022
                     elif value==-1:
                         steering=2
                     else:
                         steering=510
-                    
-                    if steering % 2 == 1:                                      # make steering always even to distinguish in arduino
-                        steering = steering + 1
-                   
+                        
                     print("steering is:" , steering)
                     test_data = '*' + str(req) + '&' + str(mode) + '^' + str(throttle) + '%' + str(steering) + '+\n'        
                     transmit_Lora(test_data)
                     print(test_data)
-                    #print("request is", request)
-
+               
+                
+                print("the bowpholus")
+                test_data = '*' + str(req) + '&' + str(mode) + '^' + str(throttle) + '%' + str(steering) + '+\n'        
+                transmit_Lora(test_data)
+                print(test_data)
+                
+            if event.code in axis and (axis[event.code] == 'dpad_y' or axis[event.code] == 'dpad_x'):
+                #if event.code in axis and axis [ event.code ] != 'ls_x'  or axis[ event.code ] != 'ls_y':
+                print("Idle")
+                test_data = '*' + str(req) + '&' + str(mode) + '^' + str(throttle) + '%' + str(steering) + '+\n'        
+                transmit_Lora(test_data)
+                print(test_data)
 def IRQ():
     global mode
     while True:
