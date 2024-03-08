@@ -18,7 +18,7 @@ lora = serial.Serial('/dev/ttyS0', baudrate=115200, timeout=0)  # set up LoRa
 
 # Get starting position of USV
 starting_lon, starting_lat = GPS.getGPS()
-print(f"Starting Longitude: {starting_lon/10000.0}, Starting Latitude: {starting_lat/10000.0}")
+print(f"Starting Longitude: {starting_lon}, Starting Latitude: {starting_lat}")
 
 # return_method will determine how the USV returns to the base station. It will be determined on creation of waypoint arrays.
 # If return_method is zero then the USV will return to the starting position by iterating through the waypoints in reverse.
@@ -374,14 +374,14 @@ def auto():
     gps_lon, gps_lat = GPS.getGPS()
     #print(f"gps_lon: {gps_lon}")
     #print(f"gps_lat: {gps_lat}")
-    gps_lon1 = gps_lon / 10000
-    gps_lat1 = gps_lat / 10000
+    gps_lon1 = gps_lon * 10000
+    gps_lat1 = gps_lat * 10000
     # Read magnetometer
     current_yaw = QMC.get_bearing() + 27
     #print(f"current_yaw: {current_yaw}")
     
     # Get target yaw using PID or object detected function
-    target_yaw = getNextHeading(current_yaw, distances, angles, waypoint_lon[waypoint_count], waypoint_lat[waypoint_count], gps_lon1, gps_lat1, return_method, ultrasonic_obstacles)
+    target_yaw = getNextHeading(current_yaw, distances, angles, waypoint_lon[waypoint_count], waypoint_lat[waypoint_count], gps_lon, gps_lat, return_method, ultrasonic_obstacles)
     #print(f"Taget Heading: {target_yaw}")
     steering = target_yaw
     
@@ -392,7 +392,7 @@ def auto():
     # Send data if requested
     if req == 1:
         #print("Data Request")
-        data = '*' + str(gps_lon) + '&' + str(gps_lat) + '^' + str(math.floor(current_yaw)) + '+'            
+        data = '*' + str(gps_lon1) + '&' + str(gps_lat1) + '^' + str(math.floor(current_yaw)) + '+'            
         # Wait for ACK before moving on
         transmit_Lora(data)
         req = 0
