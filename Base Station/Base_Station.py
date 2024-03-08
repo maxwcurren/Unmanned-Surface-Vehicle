@@ -8,16 +8,11 @@ import board
 import digitalio
 import math
 import threading
-
+from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 import adafruit_ssd1306
 
 import GUI
-
-#arrays for storing previous locations
-longitude=[]
-latitude=[]
-head=[]
 
 maxJs= 65536
 value=0
@@ -30,7 +25,7 @@ controller = InputDevice( '/dev/input/event4') # set up input from game controll
 serial_port = '/dev/ttyS0'
 test_data="this"
 ser = serial.Serial(serial_port, baudrate=115200,timeout=1)
-
+file_path = r"/home/dasbro73/BaseStation/log.txt"
 
 # Define the Reset Pin
 oled_reset = digitalio.DigitalInOut(board.D4)
@@ -82,7 +77,7 @@ def receive_Lora(max_retries=15):
                 #print(f"Received error: {response}")
                 pass
             else:
-                #print(f"Received: {response}")
+                print(f"Received: {response}")
                 error = 0
                 return response, error
         retry_count += 1
@@ -98,11 +93,6 @@ def receive_Lora(max_retries=15):
 def request():
     #write to request data from USV
     global req
-    
-    #arrays for storing locations
-    global longitude
-    global latitude       
-    global head
     
     start_time = time.time()
     req=1
@@ -121,10 +111,12 @@ def request():
             req=0
             lon, lat, Mag = response
             
-            #add the values once received
-            longitude.append(lon)
-            latitude.append(lat)   
-            head.append(Mag)
+            #add the values to log
+            
+            file = open(file_path, "a")
+            file.write(f"Longitude: {(int(lon)/10000)} Latitude: {(int(lat)/10000)} Orientation: {Mag}\t\t")
+            file.write(datetime.today().strftime('%Y-%m-%d %H:%M:%S')+"\n")
+            file.close()
             
             print("Coordinates are: ", lon, lat) 
             print(f"Orientation is {Mag} degrees")
