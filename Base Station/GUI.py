@@ -13,10 +13,6 @@ def convert_pixel_to_latitude(pixel_y, min_latitude, max_latitude, image_height)
     scaling_factor = image_height / (max_latitude - min_latitude)
     return max_latitude - (pixel_y / scaling_factor)
 
-def convert_pixel_to_longitude(pixel_x, min_longitude, max_longitude, image_width):
-    scaling_factor = image_width / (max_longitude - min_longitude)
-    return min_longitude + (pixel_x / scaling_factor)
-
 class GUI:
     def __init__(self, root, image_path):
         self.root = root
@@ -28,7 +24,7 @@ class GUI:
 
         # Create Canvas for image
         self.canvas = tk.Canvas(root, width=self.image.width, height=self.image.height)
-        self.canvas.pack(side=tk.RIGHT)  # Adjusted to place canvas on the right
+        self.canvas.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)  # Adjusted to place canvas on the right
 
         # Display the image on the canvas
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.photo)
@@ -68,6 +64,17 @@ class GUI:
         # Text widget to display coordinates
         self.coordinate_text = tk.Text(root, height=20, width=30)
         self.coordinate_text.pack(side=tk.LEFT, padx=10)
+
+        # Update canvas size if the window is resized
+        root.bind("<Configure>", self.update_canvas_size)
+
+    def update_canvas_size(self, event):
+        width = event.width
+        height = event.height
+        self.canvas.config(width=width, height=height)
+
+    # Other methods remain unchanged
+
 
     def on_canvas_click(self, event):
         if not self.canvas_click_enabled:
