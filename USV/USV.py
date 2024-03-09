@@ -39,7 +39,7 @@ distances_prev = []
 angles_prev = []
 
 # Define PID variables:
-Kp_yaw, Kd_yaw = 5, 1.88
+Kp_yaw, Kd_yaw = 2, 1.88
 prev_error = 0.0
 cumulative_error = 0.0
 
@@ -94,14 +94,30 @@ def detectObject(current_heading, distances, angles, ultrasonic_ave):
         
     #print(f"Object Detected: {object_detected}")
     return object_detected
+    
+def deg2rad(deg):
+    return deg * (math.pi / 180)
 
 def getNextHeading(current_heading, distances, angles, waypoint_lon, waypoint_lat, current_lon, current_lat, return_method, ultrasonic_ave):
-    global waypoint_count, waypoint_num, starting_lon, starting_lat
+    global waypoint_count, waypoint_num, starting_lon, starting_lat, earth_radius
     # Calculate distance to waypoint
     #print("getting next heading")
+
+    # Waypoint and current coordinates
+    waypoint_lon = deg2rad(waypoint_lon)
+    waypoint_lat = deg2rad(waypoint_lat)
+    current_lon = deg2rad(current_lon)
+    current_lat = deg2rad(current_lat)
+
+    # Differences in latitude and longitude in radians
     delta_lon = waypoint_lon - current_lon
     delta_lat = waypoint_lat - current_lat
-    distance_to_waypoint = math.sqrt((delta_lon)**2 + (delta_lat)**2)
+
+    # Haversine formula to calculate distance
+    a = math.sin(delta_lat / 2) * math.sin(delta_lat / 2) + math.cos(current_lat) * math.cos(waypoint_lat) * math.sin(delta_lon / 2) * math.sin(delta_lon / 2)
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    distance_to_waypoint = earth_radius * c
+    print(f"distance to waypoint: {distance_to_waypoint}")
 
     if distance_to_waypoint < 10.0:
         waypoint_count += 1
