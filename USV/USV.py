@@ -363,14 +363,6 @@ def send_arduino(throttle, steering, timeout=3):
         print(f"Error writing to serial port: {e}")
 
 
-def is_serial_port_available(port_name):
-    try:
-        ser = serial.Serial(port_name)
-        ser.close()
-        return True
-    except serial.SerialException:
-        return False
-
 def manual():
     global throttle, steering
     # IN MANUAL MODE
@@ -384,7 +376,7 @@ def auto():
     #t1 = time.time()
     # IN AUTO MODE
     #print("In Auto")
-    throttle = 585
+    throttle = 611
     #throttle = 511
     # Read GPS Module for coordinates
     gps_lon, gps_lat = GPS.getGPS()
@@ -393,7 +385,7 @@ def auto():
     gps_lon1 = gps_lon * 10000
     gps_lat1 = gps_lat * 10000
     # Read magnetometer
-    current_yaw = QMC.get_bearing() + 27
+    current_yaw = QMC.get_bearing() 
     #print(f"current_yaw: {current_yaw}")
     
     # Get target yaw using PID or object detected function
