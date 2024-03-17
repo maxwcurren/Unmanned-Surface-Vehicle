@@ -38,7 +38,7 @@ scan_lock = threading.Lock()
 distances_prev = []
 angles_prev = []
 
-# Define PID variables:
+# Define  variables:
 Kp_yaw, Kd_yaw = 2, 1.88
 prev_error = 0.0
 cumulative_error = 0.0
@@ -131,9 +131,9 @@ def getNextHeading(current_heading, distances, angles, waypoint_lon, waypoint_la
             print(f"Desired heading: {new_heading}")
             return map_to_servo(current_heading, new_heading)
 
-        # PID
+        # PD
         elif object_detected == 0:
-            new_heading = pid_controller(current_heading, waypoint_lon, waypoint_lat, current_lon, current_lat)
+            new_heading = pd_controller(current_heading, waypoint_lon, waypoint_lat, current_lon, current_lat)
             return new_heading
 
     # Check if it's time to return
@@ -145,8 +145,8 @@ def getNextHeading(current_heading, distances, angles, waypoint_lon, waypoint_la
             if object_detected == 1:
                 new_heading = pot_heading
             else:
-                pid_output = pid_controller(current_heading, starting_lon, starting_lat, current_lon, current_lat)
-                new_heading = current_heading + pid_output
+                pd_output = pd_controller(current_heading, starting_lon, starting_lat, current_lon, current_lat)
+                new_heading = current_heading + pd_output
 
             return new_heading
 
@@ -156,7 +156,7 @@ def getNextHeading(current_heading, distances, angles, waypoint_lon, waypoint_la
             return_heading = math.atan2(delta_starting_lon, delta_starting_lat)
             return return_heading
 
-def pid_controller(current_heading, waypoint_lon, waypoint_lat, current_lon, current_lat):
+def pd_controller(current_heading, waypoint_lon, waypoint_lat, current_lon, current_lat):
     global prev_error, Kp_yaw, Kd_yaw
     
     # Calculate the differences in x and y coordinates
@@ -176,19 +176,19 @@ def pid_controller(current_heading, waypoint_lon, waypoint_lat, current_lon, cur
     derivative = Kd_yaw * (error - prev_error)
     
     # Calculate the PD output
-    pid_output = proportional + derivative
+    pd_output = proportional + derivative
     # Update previous error
     prev_error = error
     
     # Calculate next heading
-    next_heading = current_heading + pid_output
+    next_heading = current_heading + pd_output
     # Normalize the next_heading to the range [0, 360)
     next_heading = (next_heading + 360) % 360
     print(f"Desired heading: {next_heading}")
-    # Calculate the proportional servo value based on the PID output
-    proportional_servo = pid_output * (1022 - 2) / 360
+    # Calculate the proportional servo value based on the PD output
+    proportional_servo = pd_output * (1022 - 2) / 360
     
-    #print(f"Desired heading: {pid_output}")
+    #print(f"Desired heading: {pd_output}")
     
     # Calculate the final servo value
     final_servo_value = int(round(510 + proportional_servo))
@@ -388,7 +388,7 @@ def auto():
     current_yaw = QMC.get_bearing() 
     #print(f"current_yaw: {current_yaw}")
     
-    # Get target yaw using PID or object detected function
+    # Get target yaw using  or object detected function
     target_yaw = getNextHeading(current_yaw, distances, angles, waypoint_lon[waypoint_count], waypoint_lat[waypoint_count], gps_lon, gps_lat, return_method, ultrasonic_obstacles)
     #print(f"Taget Heading: {target_yaw}")
     steering = target_yaw
