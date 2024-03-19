@@ -1,5 +1,5 @@
 import time
-from Accel_Mag import QMC5883L, MPU6050
+import Mag
 import GPS
 import serial
 import Lidar
@@ -10,8 +10,6 @@ import threading
 import Ultrasonic
 from adafruit_rplidar import RPLidar
 
-QMC = QMC5883L()
-mpu6050 = MPU6050()
 ard_port = '/dev/ttyACM0'
 ser = serial.Serial(ard_port, 1200, timeout=1)  # set up serial output for Arduino
 lora = serial.Serial('/dev/ttyS0', baudrate=115200, timeout=0)  # set up LoRa
@@ -385,7 +383,7 @@ def auto():
     gps_lon1 = gps_lon * 10000
     gps_lat1 = gps_lat * 10000
     # Read magnetometer
-    current_yaw = QMC.get_bearing() 
+    current_yaw = Mag.get_bearing() 
     #print(f"current_yaw: {current_yaw}")
     
     # Get target yaw using  or object detected function
