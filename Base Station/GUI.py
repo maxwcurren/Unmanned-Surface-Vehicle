@@ -73,9 +73,6 @@ class GUI:
         height = event.height
         self.canvas.config(width=width, height=height)
 
-    # Other methods remain unchanged
-
-
     def on_canvas_click(self, event):
         if not self.canvas_click_enabled:
             return
