@@ -4,7 +4,7 @@ import time
 # Setup the RPLidar
 lidar = RPLidar(None, '/dev/ttyUSB1', timeout=3)
 
-def scan_lidar(duration, max_distance=500):
+def scan_lidar(duration, max_distance=2000):
     lidar.connect()
     time.sleep(0.1)
     AngleArr = []
